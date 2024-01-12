@@ -1,5 +1,5 @@
 use core::ops::{Add, AddAssign, Mul, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
-use crate::{from_monty_u32, BabyBear};
+use crate::{BabyBear};
 use p3_field::{PrimeField32, IntegerLike, NonCanonicalPrimeField32, Canonicalize};
 
 const _P: u32 = 0x78000001;
@@ -155,14 +155,24 @@ impl NonCanonicalPrimeField32 for BabyBearNonCanonical {
 
 impl Canonicalize<BabyBear> for BabyBearNonCanonical {
     // Naive Implementation for now
-    // As self.value >= -2**63 and P > 2**30, self.value + 2**33 P > 0 so the % returns a positive number.
+    // As self.value >= -2**63 and P > 2**30, self.value + 2**33 P > 0 so % returns a positive number.
     // This should clearly be improved at some point.
+    // Seems to be a bottleneck.
     #[inline]
     fn to_canonical(self) -> BabyBear {
-        from_monty_u32(
-            (((self.value as i128) + ((Self::ORDER_U32 as i128) << 33)) % (Self::ORDER_U32 as i128))
-                as u32,
-        )
+        // Note we do NOT move it into MONTY form. We assume it is already in this form.
+        let red = ((self.value as i64) % (Self::ORDER_U32 as i64)) as u32;
+
+        // If value >= 0: 0 <= red < P is the correct value and P + red will not overflow.
+        // If value < 0: -P < red < 0 and the value we want is P + red.
+        // On bits, + acts identically for i32 and u32. Hence we can use u32's and just check for overflow.
+
+        let (corr, over) = red.overflowing_add(Self::ORDER_U32);
+        BabyBear{ value: {if over {corr} else {red}} }
+
+        // It's possible that we could make this faster if we assumed that the input was of the form R^2x
+        // (Where R is our Mongomery Constant).
+        // This would have to be undertaken with great care though as it's changing assumptions about input data.
     }
 
 
@@ -173,7 +183,7 @@ impl Canonicalize<BabyBear> for BabyBearNonCanonical {
         Self::from_u32(input.value)
     }
 
-
+    // Naive Implementation for now
     #[inline]
     fn from_canonical_to_i31(input: BabyBear) -> Self {
         let val = input.value;
@@ -187,6 +197,7 @@ impl Canonicalize<BabyBear> for BabyBearNonCanonical {
     // Naive Implementation for now
     #[inline]
     fn to_canonical_i_small(self) -> BabyBear {
+        // Note we do NOT move it into MONTY form. We assume it is already in this form.
         self.to_canonical()
     }
 
@@ -194,7 +205,12 @@ impl Canonicalize<BabyBear> for BabyBearNonCanonical {
     // Should improve this at some point.
     #[inline]
     fn to_canonical_u_small(self) -> BabyBear {
-        from_monty_u32((self.value % Self::ORDER_U32 as i64) as u32)
+        // Note we do NOT move it into MONTY form. We assume it is already in this form.
+
+        // It's possible that we could make this faster if we assumed that the input was of the form R^2x
+        // (Where R is our Mongomery Constant).
+        // This would have to be undertaken with great care though as it's changing assumptions about input data.
+        BabyBear { value: (self.value % (Self::ORDER_U32 as i64)) as u32 }
     }
 }
 
