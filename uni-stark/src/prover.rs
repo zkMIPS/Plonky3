@@ -91,6 +91,7 @@ where
     let (opened_values, opening_proof) = pcs.open_multi_batches(
         &[
             (&trace_data, &[vec![zeta, zeta * g_subgroup]]),
+            // TODO: permutation data
             (
                 &quotient_data,
                 &[vec![zeta.exp_power_of_2(log_quotient_degree)]],
@@ -100,10 +101,14 @@ where
     );
     let trace_local = opened_values[0][0][0].clone();
     let trace_next = opened_values[0][0][1].clone();
-    let quotient_chunks = opened_values[1][0][0].clone();
+    let permutation_local = opened_values[1][0][0].clone();
+    let permutation_next = opened_values[1][0][1].clone();
+    let quotient_chunks = opened_values[2][0][0].clone();
     let opened_values = OpenedValues {
         trace_local,
         trace_next,
+        permutation_local,
+        permutation_next,
         quotient_chunks,
     };
     Proof {

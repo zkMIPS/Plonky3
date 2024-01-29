@@ -1,5 +1,5 @@
-use p3_air::{AirBuilder, TwoRowMatrixView};
-use p3_field::{AbstractField, Field};
+use p3_air::{AirBuilder, PermutationAirBuilder, TwoRowMatrixView};
+use p3_field::AbstractField;
 
 use crate::StarkConfig;
 
@@ -12,13 +12,14 @@ pub struct ProverConstraintFolder<'a, SC: StarkConfig> {
     pub accumulator: SC::PackedChallenge,
 }
 
-pub struct VerifierConstraintFolder<'a, Challenge> {
-    pub main: TwoRowMatrixView<'a, Challenge>,
-    pub is_first_row: Challenge,
-    pub is_last_row: Challenge,
-    pub is_transition: Challenge,
-    pub alpha: Challenge,
-    pub accumulator: Challenge,
+pub struct VerifierConstraintFolder<'a, SC: StarkConfig> {
+    pub main: TwoRowMatrixView<'a, SC::Challenge>,
+    pub permutation: TwoRowMatrixView<'a, SC::Challenge>,
+    pub is_first_row: SC::Challenge,
+    pub is_last_row: SC::Challenge,
+    pub is_transition: SC::Challenge,
+    pub alpha: SC::Challenge,
+    pub accumulator: SC::Challenge,
 }
 
 impl<'a, SC: StarkConfig> AirBuilder for ProverConstraintFolder<'a, SC> {
@@ -54,11 +55,11 @@ impl<'a, SC: StarkConfig> AirBuilder for ProverConstraintFolder<'a, SC> {
     }
 }
 
-impl<'a, Challenge: Field> AirBuilder for VerifierConstraintFolder<'a, Challenge> {
-    type F = Challenge;
-    type Expr = Challenge;
-    type Var = Challenge;
-    type M = TwoRowMatrixView<'a, Challenge>;
+impl<'a, SC: StarkConfig> AirBuilder for VerifierConstraintFolder<'a, SC> {
+    type F = SC::Val;
+    type Expr = SC::Challenge;
+    type Var = SC::Challenge;
+    type M = TwoRowMatrixView<'a, SC::Challenge>;
 
     fn main(&self) -> Self::M {
         self.main
@@ -81,8 +82,23 @@ impl<'a, Challenge: Field> AirBuilder for VerifierConstraintFolder<'a, Challenge
     }
 
     fn assert_zero<I: Into<Self::Expr>>(&mut self, x: I) {
-        let x: Challenge = x.into();
+        let x: SC::Challenge = x.into();
         self.accumulator *= self.alpha;
         self.accumulator += x;
+    }
+}
+
+impl<'a, SC: StarkConfig> PermutationAirBuilder for VerifierConstraintFolder<'a, SC> {
+    type EF = SC::Challenge;
+    type ExprEF = SC::Challenge;
+    type VarEF = SC::Challenge;
+    type MP = TwoRowMatrixView<'a, SC::Challenge>;
+
+    fn permutation(&self) -> Self::MP {
+        self.permutation
+    }
+
+    fn permutation_randomness(&self) -> &[Self::EF] {
+        todo!()
     }
 }

@@ -21,7 +21,7 @@ pub fn verify<SC, A>(
 ) -> Result<(), VerificationError>
 where
     SC: StarkConfig,
-    A: Air<SymbolicAirBuilder<SC::Val>> + for<'a> Air<VerifierConstraintFolder<'a, SC::Challenge>>,
+    A: Air<SymbolicAirBuilder<SC::Val>> + for<'a> Air<VerifierConstraintFolder<'a, SC>>,
 {
     let log_quotient_degree = get_log_quotient_degree::<SC::Val, A>(air);
     let quotient_degree = 1 << log_quotient_degree;
@@ -58,10 +58,14 @@ where
         ),
     ];
     let values = vec![
+        // main trace round
         vec![vec![
             opened_values.trace_local.clone(),
             opened_values.trace_next.clone(),
         ]],
+        // permutation round
+        vec![], // TODO
+        // quotient round
         vec![vec![opened_values.quotient_chunks.clone()]],
     ];
     let dims = &[
@@ -85,13 +89,7 @@ where
     let mut quotient_parts: Vec<SC::Challenge> = opened_values
         .quotient_chunks
         .chunks(challenge_ext_degree)
-        .map(|chunk| {
-            chunk
-                .iter()
-                .enumerate()
-                .map(|(i, &c)| <SC::Challenge as AbstractExtensionField<SC::Val>>::monomial(i) * c)
-                .sum()
-        })
+        .map(unflatten)
         .collect();
     // Then we reconstruct the larger quotient polynomial from its degree-n parts.
     reverse_slice_index_bits(&mut quotient_parts);
@@ -101,6 +99,25 @@ where
         .map(|(weight, part)| part * weight)
         .sum();
 
+    fn unflatten<F: AbstractField, EF: AbstractExtensionField<F>>(chunk: &[EF]) -> EF {
+        chunk
+            .iter()
+            .enumerate()
+            .map(|(i, &ref c)| <EF as AbstractExtensionField<F>>::monomial(i) * c.clone())
+            .sum()
+    }
+
+    let permutation_local: Vec<SC::Challenge> = opened_values
+        .permutation_local
+        .chunks(challenge_ext_degree)
+        .map(unflatten)
+        .collect();
+    let permutation_next: Vec<SC::Challenge> = opened_values
+        .permutation_next
+        .chunks(challenge_ext_degree)
+        .map(unflatten)
+        .collect();
+
     let z_h = zeta.exp_power_of_2(*degree_bits) - SC::Challenge::one();
     let is_first_row = z_h / (zeta - SC::Val::one());
     let is_last_row = z_h / (zeta - g_subgroup.inverse());
@@ -109,6 +126,10 @@ where
         main: TwoRowMatrixView {
             local: &opened_values.trace_local,
             next: &opened_values.trace_next,
+        },
+        permutation: TwoRowMatrixView {
+            local: &permutation_local,
+            next: &permutation_next,
         },
         is_first_row,
         is_last_row,
