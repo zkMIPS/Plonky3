@@ -54,9 +54,21 @@ fn make_test_fri_pcs(log_degrees: &[usize]) {
         .map(|d| RowMajorMatrix::rand(&mut rng, 1 << *d, 10))
         .collect::<Vec<_>>();
 
+    // Limiting the height for the other polynomials will make the test pass.
+    // let max_d = *log_degrees.iter().max().unwrap();
+    // Removing the limit will make the test fail.
+    let max_d = log_degrees.iter().map(|d| d + 1).max().unwrap();
+
+    let other_polynomials = log_degrees
+        .iter()
+        .map(|d| RowMajorMatrix::rand(&mut rng, 1 << (*d + 1).min(max_d), 10))
+        .collect::<Vec<_>>();
+
     let (commit, data) = pcs.commit_batches(polynomials.clone());
+    let (other_commit, other_data) = pcs.commit_batches(other_polynomials.clone());
 
     challenger.observe(commit);
+    challenger.observe(other_commit);
 
     let zeta = challenger.sample_ext_element::<Challenge>();
 
@@ -64,22 +76,27 @@ fn make_test_fri_pcs(log_degrees: &[usize]) {
 
     let (opening, proof) = <Pcs as UnivariatePcs<_, _, RowMajorMatrix<Val>, _>>::open_multi_batches(
         &pcs,
-        &[(&data, &points)],
+        &[(&data, &points), ((&other_data, &points))],
         &mut challenger,
     );
 
     // verify the proof.
     let mut challenger = Challenger::new(perm);
     challenger.observe(commit);
+    challenger.observe(other_commit);
     let _ = challenger.sample_ext_element::<Challenge>();
     let dims = polynomials
         .iter()
         .map(|p| p.dimensions())
         .collect::<Vec<_>>();
+    let other_dims = other_polynomials
+        .iter()
+        .map(|p| p.dimensions())
+        .collect::<Vec<_>>();
     <Pcs as UnivariatePcs<_, _, RowMajorMatrix<Val>, _>>::verify_multi_batches(
         &pcs,
-        &[(commit, &points)],
-        &[dims],
+        &[(commit, &points), (other_commit, &points)],
+        &[dims, other_dims],
         opening,
         &proof,
         &mut challenger,
