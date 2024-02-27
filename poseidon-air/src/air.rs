@@ -1,14 +1,15 @@
 use alloc::vec::Vec;
 use p3_mds::MdsPermutation;
 use core::borrow::Borrow;
+use core::mem::size_of;
 
 use p3_air::{Air, AirBuilder, BaseAir};
 use p3_field::AbstractField;
 use p3_matrix::MatrixRowSlices;
 
-use crate::columns::{get_num_poseidon_cols, PoseidonCols};
+use crate::columns::PoseidonCols;
 use crate::round_flags::eval_round_flags;
-use crate::{HALF_N_FULL_ROUNDS, N_PARTIAL_ROUNDS};
+use crate::get_num_poseidon_cols;
 
 pub struct PoseidonAir<Mds: Sync, const WIDTH: usize, const ALPHA: u64> {
     half_num_full_rounds: usize,
@@ -19,7 +20,7 @@ pub struct PoseidonAir<Mds: Sync, const WIDTH: usize, const ALPHA: u64> {
 
 impl<F, Mds: Sync, const WIDTH: usize, const ALPHA: u64> BaseAir<F> for PoseidonAir<Mds, WIDTH, ALPHA> {
     fn width(&self) -> usize {
-        get_num_poseidon_cols(WIDTH)
+        get_num_poseidon_cols!(WIDTH)
     }
 }
 
@@ -29,9 +30,9 @@ where Mds: MdsPermutation<AB::Expr, WIDTH>
 {
     fn eval(&self, builder: &mut AB)
     {
-        eval_round_flags::<AB, WIDTH>(builder);
-
-        let num_rounds = 2 * HALF_N_FULL_ROUNDS + N_PARTIAL_ROUNDS;
+        let num_rounds = 2 * self.half_num_full_rounds + self.num_partial_rounds;
+        
+        eval_round_flags::<AB, WIDTH>(builder, num_rounds);
 
         let main = builder.main();
         let local: &PoseidonCols<AB::Var, WIDTH> = main.row_slice(0).borrow();
@@ -68,7 +69,7 @@ where Mds: MdsPermutation<AB::Expr, WIDTH>
             let before = local.after_constants[i];
             let expected = local.after_sbox[i];
             let after = before.into().exp_u64(ALPHA);
-            builder.assert_eq(after * full_round, expected * full_round);
+            builder.assert_eq(after * full_round.clone(), expected * full_round.clone());
         }
 
         // check that MDS layer is correct
@@ -76,7 +77,7 @@ where Mds: MdsPermutation<AB::Expr, WIDTH>
         let expected = local.after_mds;
         let after = self.mds.permute(before);
         for i in 0..WIDTH {
-            builder.assert_eq(after[i], expected[i]);
+            builder.assert_eq(after[i].clone(), expected[i]);
         }
 
         // check that end of this round matches start of next round

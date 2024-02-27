@@ -1,7 +1,5 @@
 use core::borrow::{Borrow, BorrowMut};
-use core::mem::{size_of, transmute};
-
-use p3_util::indices_arr;
+use core::mem::size_of;
 
 use crate::N_ROUNDS;
 
@@ -18,45 +16,16 @@ pub(crate) struct PoseidonCols<T, const WIDTH: usize> {
     pub after_mds: [T; WIDTH],
 }
 
-pub(crate) const fn get_num_poseidon_cols(width: usize) -> usize {
-    if width == 8 {
-        size_of::<PoseidonCols<u8, 8>>()
-    } else if width == 12 {
-        size_of::<PoseidonCols<u8, 12>>()
-    } else {
-        unimplemented!()
-    }
-}
-
-const fn make_col_map<const WIDTH: usize>() -> PoseidonCols<usize, WIDTH> {
-    if WIDTH == 8 {
-        make_col_map_width_8()
-    } else if WIDTH == 12 {
-        make_col_map_width_12()
-    } else {
-        unimplemented!()
-    }
-}
-
-const fn make_col_map_width_8() -> PoseidonCols<usize, 8> {
-    let indices_arr = indices_arr::<{ get_num_poseidon_cols(8) }>();
-    unsafe {
-        transmute::<[usize; size_of::<PoseidonCols<u8, 8>>()], PoseidonCols<usize, 8>>(indices_arr)
-    }
-}
-
-const fn make_col_map_width_12() -> PoseidonCols<usize, 12> {
-    let indices_arr = indices_arr::<{ size_of::<PoseidonCols<u8, 12>>() }>();
-    unsafe {
-        transmute::<[usize; size_of::<PoseidonCols<u8, 12>>()], PoseidonCols<usize, 12>>(
-            indices_arr,
-        )
-    }
+#[macro_export]
+macro_rules! get_num_poseidon_cols {
+    ($width:expr) => {
+        size_of::<PoseidonCols<u8, $width>>()
+    };
 }
 
 impl<T, const WIDTH: usize> Borrow<PoseidonCols<T, WIDTH>> for [T] {
     fn borrow(&self) -> &PoseidonCols<T, WIDTH> {
-        debug_assert_eq!(self.len(), get_num_poseidon_cols(WIDTH));
+        debug_assert_eq!(self.len(), get_num_poseidon_cols!(WIDTH));
         let (prefix, shorts, suffix) = unsafe { self.align_to::<PoseidonCols<T, WIDTH>>() };
         debug_assert!(prefix.is_empty(), "Alignment should match");
         debug_assert!(suffix.is_empty(), "Alignment should match");
@@ -67,7 +36,7 @@ impl<T, const WIDTH: usize> Borrow<PoseidonCols<T, WIDTH>> for [T] {
 
 impl<T, const WIDTH: usize> BorrowMut<PoseidonCols<T, WIDTH>> for [T] {
     fn borrow_mut(&mut self) -> &mut PoseidonCols<T, WIDTH> {
-        debug_assert_eq!(self.len(), get_num_poseidon_cols(WIDTH));
+        debug_assert_eq!(self.len(), get_num_poseidon_cols!(WIDTH));
         let (prefix, shorts, suffix) = unsafe { self.align_to_mut::<PoseidonCols<T, WIDTH>>() };
         debug_assert!(prefix.is_empty(), "Alignment should match");
         debug_assert!(suffix.is_empty(), "Alignment should match");
