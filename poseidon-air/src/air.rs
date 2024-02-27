@@ -50,35 +50,40 @@ where Mds: MdsPermutation<AB::Expr, WIDTH>
                 round_constant += this_round * this_round_constant;
             }
             let before = local.start_of_round[i];
-            let after = local.after_constants[i];
+            let expected = local.after_constants[i];
 
-            builder.assert_eq(after, before + round_constant);
+            builder.assert_eq(expected, before + round_constant);
         }
 
         // check that sbox layer is correct
         // partial s-box
         let before = local.after_constants[0];
-        let after = local.after_sbox[0];
-        let before_raised_to_alpha = before.into().exp_u64(ALPHA);
-        builder.assert_eq(after, before_raised_to_alpha);
+        let expected = local.after_sbox[0];
+        let after = before.into().exp_u64(ALPHA);
+        builder.assert_eq(expected, after);
 
         // full s-box
         let full_round = AB::Expr::one() - local.partial_round;
         for i in 0..WIDTH {
             let before = local.after_constants[i];
-            let after = local.after_sbox[i];
-            let before_raised_to_alpha = before.into().exp_u64(ALPHA);
-            builder.assert_eq(before_raised_to_alpha * full_round, after * full_round);
+            let expected = local.after_sbox[i];
+            let after = before.into().exp_u64(ALPHA);
+            builder.assert_eq(after * full_round, expected * full_round);
         }
 
         // check that MDS layer is correct
-        
+        let before: [AB::Expr; WIDTH] = local.after_sbox.map(|x| x.into());
+        let expected = local.after_mds;
+        let after = self.mds.permute(before);
+        for i in 0..WIDTH {
+            builder.assert_eq(after[i], expected[i]);
+        }
 
         // check that end of this round matches start of next round
         for i in 0..WIDTH {
-            let current = local.after_mds[i];
-            let next = next.start_of_round[i];
-            builder.assert_eq(next, current);
+            let end = local.after_mds[i];
+            let start = next.start_of_round[i];
+            builder.assert_eq(end, start);
         }
     }
 }
