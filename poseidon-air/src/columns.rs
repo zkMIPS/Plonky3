@@ -1,4 +1,5 @@
-use core::{borrow::{Borrow, BorrowMut}, mem::{size_of, transmute}};
+use core::borrow::{Borrow, BorrowMut};
+use core::mem::{size_of, transmute};
 
 use p3_util::indices_arr;
 
@@ -7,6 +8,9 @@ use crate::N_ROUNDS;
 pub(crate) struct PoseidonCols<T, const WIDTH: usize> {
     /// The `i`th value is set to 1 if we are in the `i`th round, otherwise 0.
     pub round_flags: [T; N_ROUNDS],
+
+    /// Set to 1 if we are currently in a partial round, otherwise 0.
+    pub partial_round: T,
 
     pub start_of_round: [T; WIDTH],
     pub after_constants: [T; WIDTH],
@@ -35,13 +39,19 @@ const fn make_col_map<const WIDTH: usize>() -> PoseidonCols<usize, WIDTH> {
 }
 
 const fn make_col_map_width_8() -> PoseidonCols<usize, 8> {
-    let indices_arr = indices_arr::<{get_num_poseidon_cols(8)}>();
-    unsafe { transmute::<[usize; size_of::<PoseidonCols<u8, 8>>()], PoseidonCols<usize, 8>>(indices_arr) }
+    let indices_arr = indices_arr::<{ get_num_poseidon_cols(8) }>();
+    unsafe {
+        transmute::<[usize; size_of::<PoseidonCols<u8, 8>>()], PoseidonCols<usize, 8>>(indices_arr)
+    }
 }
 
 const fn make_col_map_width_12() -> PoseidonCols<usize, 12> {
-    let indices_arr = indices_arr::<{size_of::<PoseidonCols<u8, 12>>()}>();
-    unsafe { transmute::<[usize; size_of::<PoseidonCols<u8, 12>>()], PoseidonCols<usize, 12>>(indices_arr) }
+    let indices_arr = indices_arr::<{ size_of::<PoseidonCols<u8, 12>>() }>();
+    unsafe {
+        transmute::<[usize; size_of::<PoseidonCols<u8, 12>>()], PoseidonCols<usize, 12>>(
+            indices_arr,
+        )
+    }
 }
 
 impl<T, const WIDTH: usize> Borrow<PoseidonCols<T, WIDTH>> for [T] {
