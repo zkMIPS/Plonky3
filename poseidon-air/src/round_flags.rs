@@ -5,7 +5,9 @@ use p3_matrix::MatrixRowSlices;
 
 use crate::columns::PoseidonCols;
 
-pub(crate) fn eval_round_flags<AB: AirBuilder, const WIDTH: usize, const N_ROUNDS: usize>(builder: &mut AB) {
+pub(crate) fn eval_round_flags<AB: AirBuilder, const WIDTH: usize, const N_ROUNDS: usize>(
+    builder: &mut AB,
+) {
     let main = builder.main();
     let local: &PoseidonCols<AB::Var, WIDTH, N_ROUNDS> = main.row_slice(0).borrow();
     let next: &PoseidonCols<AB::Var, WIDTH, N_ROUNDS> = main.row_slice(1).borrow();

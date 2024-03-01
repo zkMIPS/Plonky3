@@ -21,10 +21,13 @@ macro_rules! get_num_poseidon_cols {
     };
 }
 
-impl<T, const WIDTH: usize, const N_ROUNDS: usize> Borrow<PoseidonCols<T, WIDTH, N_ROUNDS>> for [T] {
+impl<T, const WIDTH: usize, const N_ROUNDS: usize> Borrow<PoseidonCols<T, WIDTH, N_ROUNDS>>
+    for [T]
+{
     fn borrow(&self) -> &PoseidonCols<T, WIDTH, N_ROUNDS> {
         debug_assert_eq!(self.len(), get_num_poseidon_cols!(WIDTH, N_ROUNDS));
-        let (prefix, shorts, suffix) = unsafe { self.align_to::<PoseidonCols<T, WIDTH, N_ROUNDS>>() };
+        let (prefix, shorts, suffix) =
+            unsafe { self.align_to::<PoseidonCols<T, WIDTH, N_ROUNDS>>() };
         debug_assert!(prefix.is_empty(), "Alignment should match");
         debug_assert!(suffix.is_empty(), "Alignment should match");
         debug_assert_eq!(shorts.len(), 1);
@@ -32,10 +35,13 @@ impl<T, const WIDTH: usize, const N_ROUNDS: usize> Borrow<PoseidonCols<T, WIDTH,
     }
 }
 
-impl<T, const WIDTH: usize, const N_ROUNDS: usize> BorrowMut<PoseidonCols<T, WIDTH, N_ROUNDS>> for [T] {
+impl<T, const WIDTH: usize, const N_ROUNDS: usize> BorrowMut<PoseidonCols<T, WIDTH, N_ROUNDS>>
+    for [T]
+{
     fn borrow_mut(&mut self) -> &mut PoseidonCols<T, WIDTH, N_ROUNDS> {
         debug_assert_eq!(self.len(), get_num_poseidon_cols!(WIDTH, N_ROUNDS));
-        let (prefix, shorts, suffix) = unsafe { self.align_to_mut::<PoseidonCols<T, WIDTH, N_ROUNDS>>() };
+        let (prefix, shorts, suffix) =
+            unsafe { self.align_to_mut::<PoseidonCols<T, WIDTH, N_ROUNDS>>() };
         debug_assert!(prefix.is_empty(), "Alignment should match");
         debug_assert!(suffix.is_empty(), "Alignment should match");
         debug_assert_eq!(shorts.len(), 1);

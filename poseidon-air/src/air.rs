@@ -1,15 +1,15 @@
 use alloc::vec::Vec;
-use p3_mds::MdsPermutation;
 use core::borrow::Borrow;
 use core::mem::size_of;
 
 use p3_air::{Air, AirBuilder, BaseAir};
 use p3_field::AbstractField;
 use p3_matrix::MatrixRowSlices;
+use p3_mds::MdsPermutation;
 
 use crate::columns::PoseidonCols;
-use crate::round_flags::eval_round_flags;
 use crate::get_num_poseidon_cols;
+use crate::round_flags::eval_round_flags;
 
 pub struct PoseidonAir<Mds: Sync, const WIDTH: usize, const ALPHA: u64, const N_ROUNDS: usize> {
     half_num_full_rounds: usize,
@@ -18,7 +18,9 @@ pub struct PoseidonAir<Mds: Sync, const WIDTH: usize, const ALPHA: u64, const N_
     mds: Mds,
 }
 
-impl<F, Mds: Sync, const WIDTH: usize, const ALPHA: u64, const N_ROUNDS: usize> BaseAir<F> for PoseidonAir<Mds, WIDTH, ALPHA, N_ROUNDS> {
+impl<F, Mds: Sync, const WIDTH: usize, const ALPHA: u64, const N_ROUNDS: usize> BaseAir<F>
+    for PoseidonAir<Mds, WIDTH, ALPHA, N_ROUNDS>
+{
     fn width(&self) -> usize {
         get_num_poseidon_cols!(WIDTH, N_ROUNDS)
     }
@@ -26,13 +28,13 @@ impl<F, Mds: Sync, const WIDTH: usize, const ALPHA: u64, const N_ROUNDS: usize> 
 
 impl<AB: AirBuilder, Mds: Sync, const WIDTH: usize, const ALPHA: u64, const N_ROUNDS: usize> Air<AB>
     for PoseidonAir<Mds, WIDTH, ALPHA, N_ROUNDS>
-where Mds: MdsPermutation<AB::Expr, WIDTH>
+where
+    Mds: MdsPermutation<AB::Expr, WIDTH>,
 {
-    fn eval(&self, builder: &mut AB)
-    {
+    fn eval(&self, builder: &mut AB) {
         let num_rounds = 2 * self.half_num_full_rounds + self.num_partial_rounds;
         assert_eq!(num_rounds, N_ROUNDS);
-        
+
         eval_round_flags::<AB, WIDTH, N_ROUNDS>(builder);
 
         let main = builder.main();
