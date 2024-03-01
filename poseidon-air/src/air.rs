@@ -11,32 +11,33 @@ use crate::columns::PoseidonCols;
 use crate::round_flags::eval_round_flags;
 use crate::get_num_poseidon_cols;
 
-pub struct PoseidonAir<Mds: Sync, const WIDTH: usize, const ALPHA: u64> {
+pub struct PoseidonAir<Mds: Sync, const WIDTH: usize, const ALPHA: u64, const N_ROUNDS: usize> {
     half_num_full_rounds: usize,
     num_partial_rounds: usize,
     round_constants: Vec<u64>,
     mds: Mds,
 }
 
-impl<F, Mds: Sync, const WIDTH: usize, const ALPHA: u64> BaseAir<F> for PoseidonAir<Mds, WIDTH, ALPHA> {
+impl<F, Mds: Sync, const WIDTH: usize, const ALPHA: u64, const N_ROUNDS: usize> BaseAir<F> for PoseidonAir<Mds, WIDTH, ALPHA, N_ROUNDS> {
     fn width(&self) -> usize {
-        get_num_poseidon_cols!(WIDTH)
+        get_num_poseidon_cols!(WIDTH, N_ROUNDS)
     }
 }
 
-impl<AB: AirBuilder, Mds: Sync, const WIDTH: usize, const ALPHA: u64> Air<AB>
-    for PoseidonAir<Mds, WIDTH, ALPHA>
+impl<AB: AirBuilder, Mds: Sync, const WIDTH: usize, const ALPHA: u64, const N_ROUNDS: usize> Air<AB>
+    for PoseidonAir<Mds, WIDTH, ALPHA, N_ROUNDS>
 where Mds: MdsPermutation<AB::Expr, WIDTH>
 {
     fn eval(&self, builder: &mut AB)
     {
         let num_rounds = 2 * self.half_num_full_rounds + self.num_partial_rounds;
+        assert_eq!(num_rounds, N_ROUNDS);
         
-        eval_round_flags::<AB, WIDTH>(builder, num_rounds);
+        eval_round_flags::<AB, WIDTH, N_ROUNDS>(builder);
 
         let main = builder.main();
-        let local: &PoseidonCols<AB::Var, WIDTH> = main.row_slice(0).borrow();
-        let next: &PoseidonCols<AB::Var, WIDTH> = main.row_slice(1).borrow();
+        let local: &PoseidonCols<AB::Var, WIDTH, N_ROUNDS> = main.row_slice(0).borrow();
+        let next: &PoseidonCols<AB::Var, WIDTH, N_ROUNDS> = main.row_slice(1).borrow();
 
         // The partial round flag must be 0 or 1.
         builder.assert_bool(local.partial_round);

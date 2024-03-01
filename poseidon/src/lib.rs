@@ -15,14 +15,14 @@ use rand::Rng;
 
 /// The Poseidon permutation.
 #[derive(Clone)]
-pub struct Poseidon<F, Mds, const WIDTH: usize, const ALPHA: u64> {
+pub struct Poseidon<F, Mds, const WIDTH: usize, const ALPHA: u64, const N_ROUNDS: usize> {
     half_num_full_rounds: usize,
     num_partial_rounds: usize,
     constants: Vec<F>,
     mds: Mds,
 }
 
-impl<F, Mds, const WIDTH: usize, const ALPHA: u64> Poseidon<F, Mds, WIDTH, ALPHA>
+impl<F, Mds, const WIDTH: usize, const ALPHA: u64, const N_ROUNDS: usize> Poseidon<F, Mds, WIDTH, ALPHA, N_ROUNDS>
 where
     F: PrimeField,
 {
@@ -37,6 +37,7 @@ where
         mds: Mds,
     ) -> Self {
         let num_rounds = 2 * half_num_full_rounds + num_partial_rounds;
+        assert_eq!(num_rounds, N_ROUNDS);
         assert_eq!(constants.len(), WIDTH * num_rounds);
         Self {
             half_num_full_rounds,
@@ -121,8 +122,8 @@ where
     }
 }
 
-impl<AF, Mds, const WIDTH: usize, const ALPHA: u64> Permutation<[AF; WIDTH]>
-    for Poseidon<AF::F, Mds, WIDTH, ALPHA>
+impl<AF, Mds, const WIDTH: usize, const ALPHA: u64, const N_ROUNDS: usize> Permutation<[AF; WIDTH]>
+    for Poseidon<AF::F, Mds, WIDTH, ALPHA, N_ROUNDS>
 where
     AF: AbstractField,
     AF::F: PrimeField,
@@ -136,8 +137,8 @@ where
     }
 }
 
-impl<AF, Mds, const WIDTH: usize, const ALPHA: u64> CryptographicPermutation<[AF; WIDTH]>
-    for Poseidon<AF::F, Mds, WIDTH, ALPHA>
+impl<AF, Mds, const WIDTH: usize, const ALPHA: u64, const N_ROUNDS: usize> CryptographicPermutation<[AF; WIDTH]>
+    for Poseidon<AF::F, Mds, WIDTH, ALPHA, N_ROUNDS>
 where
     AF: AbstractField,
     AF::F: PrimeField,
