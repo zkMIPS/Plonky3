@@ -4,6 +4,7 @@ use p3_commit::ExtensionMmcs;
 use p3_dft::Radix2DitParallel;
 use p3_field::extension::BinomialExtensionField;
 use p3_fri::{FriConfig, TwoAdicFriPcs, TwoAdicFriPcsConfig};
+use p3_mds::babybear::MdsMatrixBabyBear;
 use p3_merkle_tree::FieldMerkleTreeMmcs;
 use p3_poseidon2::{DiffusionMatrixBabybear, Poseidon2};
 use p3_poseidon_air::{generate_trace_rows, PoseidonAir};
@@ -70,9 +71,25 @@ fn main() -> Result<(), VerificationError> {
 
     let mut challenger = Challenger::new(perm.clone());
 
+    let half_num_full_rounds = 4;
+    let num_partial_rounds = 22;
+    let round_constants = (0..N_ROUNDS * WIDTH).map(|_| random()).collect::<Vec<_>>();
     let inputs = (0..NUM_HASHES).map(|_| random()).collect::<Vec<_>>();
-    let trace = generate_trace_rows::<Val, WIDTH, ALPHA, N_ROUNDS, MdsMatrixBabyBear>(inputs);
-    let air = PoseidonAir::new(8, 22, perm.constants.clone(), perm.mds.clone());
+    let mds = MdsMatrixBabyBear::new();
+
+    let trace = generate_trace_rows::<Val, WIDTH, ALPHA, N_ROUNDS, MdsMatrixBabyBear>(
+        inputs,
+        half_num_full_rounds,
+        num_partial_rounds,
+        round_constants,
+        mds,
+    );
+    let air = PoseidonAir::new(
+        half_num_full_rounds,
+        num_partial_rounds,
+        round_constants,
+        mds,
+    );
     let proof = prove::<MyConfig, _>(&config, &air, &mut challenger, trace);
 
     let mut challenger = Challenger::new(perm);

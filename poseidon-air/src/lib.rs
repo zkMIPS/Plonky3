@@ -10,5 +10,4 @@ mod generation;
 mod round_flags;
 
 pub use air::*;
-
 pub use generation::*;

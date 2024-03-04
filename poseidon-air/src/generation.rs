@@ -108,6 +108,6 @@ fn generate_trace_row_for_round<
     state[..WIDTH].copy_from_slice(&row.after_sbox[..WIDTH]);
 
     mds.permute_mut(&mut state);
-    
+
     row.after_mds[..WIDTH].copy_from_slice(&state[..WIDTH]);
 }
