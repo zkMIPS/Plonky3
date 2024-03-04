@@ -73,8 +73,8 @@ fn main() -> Result<(), VerificationError> {
     let inputs = (0..NUM_HASHES).map(|_| random()).collect::<Vec<_>>();
     let trace = generate_trace_rows::<Val, WIDTH, ALPHA, N_ROUNDS, MdsMatrixBabyBear>(inputs);
     let air = PoseidonAir::new(8, 22, perm.constants.clone(), perm.mds.clone());
-    let proof = prove::<MyConfig, _>(&config, air, &mut challenger, trace);
+    let proof = prove::<MyConfig, _>(&config, &air, &mut challenger, trace);
 
     let mut challenger = Challenger::new(perm);
-    verify(&config, &PoseidonAir {}, &mut challenger, &proof)
+    verify(&config, &air, &mut challenger, &proof)
 }
