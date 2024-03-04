@@ -18,6 +18,10 @@ use tracing_subscriber::{EnvFilter, Registry};
 
 const NUM_HASHES: usize = 680;
 
+const WIDTH: usize = 8;
+const ALPHA: u64 = 7;
+const N_ROUNDS: usize = 30;
+
 fn main() -> Result<(), VerificationError> {
     let env_filter = EnvFilter::builder()
         .with_default_directive(LevelFilter::INFO.into())
@@ -67,7 +71,8 @@ fn main() -> Result<(), VerificationError> {
     let mut challenger = Challenger::new(perm.clone());
 
     let inputs = (0..NUM_HASHES).map(|_| random()).collect::<Vec<_>>();
-    let trace = generate_trace_rows::<Val>(inputs);
+    let trace = generate_trace_rows::<Val, WIDTH, ALPHA, N_ROUNDS, MdsMatrixBabyBear>(inputs);
+    let air = PoseidonAir::new(8, 22, perm.constants.clone(), perm.mds.clone());
     let proof = prove::<MyConfig, _>(&config, &PoseidonAir {}, &mut challenger, trace);
 
     let mut challenger = Challenger::new(perm);
