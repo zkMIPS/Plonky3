@@ -75,7 +75,7 @@ fn main() -> Result<(), VerificationError> {
     let num_partial_rounds = 22;
     let round_constants = (0..N_ROUNDS * WIDTH).map(|_| random()).collect::<Vec<_>>();
     let inputs = (0..NUM_HASHES).map(|_| random()).collect::<Vec<_>>();
-    let mds = MdsMatrixBabyBear::new();
+    let mds = MdsMatrixBabyBear {};
 
     let trace = generate_trace_rows::<Val, WIDTH, ALPHA, N_ROUNDS, MdsMatrixBabyBear>(
         inputs,
