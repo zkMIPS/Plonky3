@@ -18,8 +18,15 @@ pub struct PoseidonAir<Mds: Sync, const WIDTH: usize, const ALPHA: u64, const N_
     mds: Mds,
 }
 
-impl<Mds: Sync, const WIDTH: usize, const ALPHA: u64, const N_ROUNDS: usize> PoseidonAir<Mds, WIDTH, ALPHA, N_ROUNDS> {
-    pub fn new(half_num_full_rounds: usize, num_partial_rounds: usize, round_constants: Vec<u64>, mds: Mds) -> Self {
+impl<Mds: Sync, const WIDTH: usize, const ALPHA: u64, const N_ROUNDS: usize>
+    PoseidonAir<Mds, WIDTH, ALPHA, N_ROUNDS>
+{
+    pub fn new(
+        half_num_full_rounds: usize,
+        num_partial_rounds: usize,
+        round_constants: Vec<u64>,
+        mds: Mds,
+    ) -> Self {
         let num_rounds = 2 * half_num_full_rounds + num_partial_rounds;
         assert_eq!(num_rounds, N_ROUNDS);
         assert_eq!(round_constants.len(), WIDTH * num_rounds);
