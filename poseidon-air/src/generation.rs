@@ -105,11 +105,9 @@ fn generate_trace_row_for_round<
 
     // Populate after_mds
     let mut state = [F::zero(); WIDTH];
-    for i in 0..WIDTH {
-        state[i] = row.after_sbox[i];
-    }
+    state[..WIDTH].copy_from_slice(&row.after_sbox[..WIDTH]);
+
     mds.permute_mut(&mut state);
-    for i in 0..WIDTH {
-        row.after_mds[i] = state[i];
-    }
+    
+    row.after_mds[..WIDTH].copy_from_slice(&state[..WIDTH]);
 }
