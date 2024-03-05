@@ -36,10 +36,10 @@ fn main() -> Result<(), VerificationError> {
     type Val = BabyBear;
     type Challenge = BinomialExtensionField<Val, 4>;
 
-    type Perm = Poseidon2<Val, DiffusionMatrixBabybear, 16, 7>;
+    type Perm = Poseidon2<Val, DiffusionMatrixBabybear, WIDTH, 7>;
     let perm = Perm::new_from_rng(8, 22, DiffusionMatrixBabybear, &mut thread_rng());
 
-    type MyHash = PaddingFreeSponge<Perm, 16, 8, 8>;
+    type MyHash = PaddingFreeSponge<Perm, WIDTH, 8, 8>;
     let hash = MyHash::new(perm.clone());
 
     type MyCompress = CompressionFunctionFromHasher<Val, MyHash, 2, 8>;
@@ -54,7 +54,7 @@ fn main() -> Result<(), VerificationError> {
     type Dft = Radix2DitParallel;
     let dft = Dft {};
 
-    type Challenger = DuplexChallenger<Val, Perm, 16>;
+    type Challenger = DuplexChallenger<Val, Perm, WIDTH>;
 
     let fri_config = FriConfig {
         log_blowup: 1,
