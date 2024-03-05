@@ -84,6 +84,7 @@ fn main() -> Result<(), VerificationError> {
         round_constants,
         mds,
     );
+    dbg!(trace.clone());
     let air = PoseidonAir::new(
         half_num_full_rounds,
         num_partial_rounds,

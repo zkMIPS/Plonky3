@@ -7,6 +7,7 @@ extern crate alloc;
 use p3_symmetric::Permutation;
 
 pub mod babybear;
+pub mod babybear_extension;
 mod butterflies;
 pub mod coset_mds;
 pub mod goldilocks;
