@@ -1,4 +1,4 @@
-use p3_baby_bear::{BabyBear, DiffusionMatrixBabybear};
+use p3_baby_bear::BabyBear;
 use p3_challenger::DuplexChallenger;
 use p3_commit::ExtensionMmcs;
 use p3_dft::Radix2DitParallel;
@@ -7,8 +7,9 @@ use p3_field::Field;
 use p3_fri::{FriConfig, TwoAdicFriPcs};
 use p3_keccak_air::{generate_trace_rows, KeccakAir};
 use p3_matrix::Matrix;
+use p3_mds::integrated_coset_mds::IntegratedCosetMds;
 use p3_merkle_tree::FieldMerkleTreeMmcs;
-use p3_poseidon2::Poseidon2;
+use p3_poseidon::Poseidon;
 use p3_symmetric::{PaddingFreeSponge, TruncatedPermutation};
 use p3_uni_stark::{prove, verify, StarkConfig, VerificationError};
 use p3_util::log2_ceil_usize;
@@ -34,8 +35,9 @@ fn main() -> Result<(), VerificationError> {
     type Val = BabyBear;
     type Challenge = BinomialExtensionField<Val, 4>;
 
-    type Perm = Poseidon2<Val, DiffusionMatrixBabybear, 16, 7>;
-    let perm = Perm::new_from_rng(8, 22, DiffusionMatrixBabybear, &mut thread_rng());
+    type Mds = IntegratedCosetMds<Val, 16>;
+    type Perm = Poseidon<Val, Mds, 16, 7>;
+    let perm = Perm::new_from_rng(8, 22, Mds::default(), &mut thread_rng());
 
     type MyHash = PaddingFreeSponge<Perm, 16, 8, 8>;
     let hash = MyHash::new(perm.clone());
@@ -50,6 +52,7 @@ fn main() -> Result<(), VerificationError> {
         MyCompress,
         8,
     >;
+
     let val_mmcs = ValMmcs::new(hash, compress);
 
     type ChallengeMmcs = ExtensionMmcs<Val, Challenge, ValMmcs>;
@@ -64,7 +67,7 @@ fn main() -> Result<(), VerificationError> {
     let trace = generate_trace_rows::<Val>(inputs);
 
     let fri_config = FriConfig {
-        log_blowup: 2,
+        log_blowup: 1,
         num_queries: 90,
         proof_of_work_bits: 10,
         mmcs: challenge_mmcs,
@@ -78,6 +81,9 @@ fn main() -> Result<(), VerificationError> {
     let mut challenger = Challenger::new(perm.clone());
 
     let proof = prove::<MyConfig, _>(&config, &KeccakAir {}, &mut challenger, trace);
+
+    let bytes = bincode::serialize(&proof).unwrap();
+    println!("proof bytes size: {:?}", bytes.len());
 
     let mut challenger = Challenger::new(perm);
     verify(&config, &KeccakAir {}, &mut challenger, &proof)
