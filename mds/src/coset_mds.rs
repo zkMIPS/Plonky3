@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 
-use p3_field::{AbstractField, TwoAdicField};
+use p3_field::{AbstractField, Res, TwoAdicField};
 use p3_symmetric::Permutation;
 use p3_util::{log2_strict_usize, reverse_slice_index_bits};
 

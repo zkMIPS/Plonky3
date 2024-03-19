@@ -116,18 +116,18 @@ where
 
 mod tests {
     use alloc::vec::Vec;
-    use p3_mds::babybear_extension::MdsMatrixBabyBearExtension;
-    use p3_uni_stark::VerificationError;
+
     use p3_baby_bear::BabyBear;
     use p3_challenger::DuplexChallenger;
     use p3_commit::ExtensionMmcs;
     use p3_dft::Radix2DitParallel;
     use p3_field::extension::BinomialExtensionField;
+    use p3_field::Res;
     use p3_fri::{FriConfig, TwoAdicFriPcs, TwoAdicFriPcsConfig};
     use p3_mds::babybear::MdsMatrixBabyBear;
+    use p3_mds::coset_mds::CosetMds;
     use p3_merkle_tree::FieldMerkleTreeMmcs;
     use p3_poseidon2::{DiffusionMatrixBabybear, Poseidon2};
-    use crate::{generate_trace_rows, PoseidonAir};
     use p3_symmetric::{CompressionFunctionFromHasher, PaddingFreeSponge};
     use p3_uni_stark::{prove, verify, StarkConfig, VerificationError};
     use rand::{random, thread_rng};
@@ -136,9 +136,11 @@ mod tests {
     use tracing_subscriber::layer::SubscriberExt;
     use tracing_subscriber::util::SubscriberInitExt;
     use tracing_subscriber::{EnvFilter, Registry};
-    
+
+    use crate::{generate_trace_rows, PoseidonAir};
+
     const NUM_HASHES: usize = 680;
-    
+
     const WIDTH: usize = 8;
     const ALPHA: u64 = 7;
     const N_ROUNDS: usize = 30;
@@ -183,8 +185,9 @@ mod tests {
             proof_of_work_bits: 16,
             mmcs: challenge_mmcs,
         };
-        type Pcs =
-            TwoAdicFriPcs<TwoAdicFriPcsConfig<Val, Challenge, Challenger, Dft, ValMmcs, ChallengeMmcs>>;
+        type Pcs = TwoAdicFriPcs<
+            TwoAdicFriPcsConfig<Val, Challenge, Challenger, Dft, ValMmcs, ChallengeMmcs>,
+        >;
         let pcs = Pcs::new(fri_config, dft, val_mmcs);
 
         type MyConfig = StarkConfig<Val, Challenge, Pcs, Challenger>;
@@ -196,9 +199,11 @@ mod tests {
         let num_partial_rounds = 22;
         let round_constants = (0..N_ROUNDS * WIDTH).map(|_| random()).collect::<Vec<_>>();
         let inputs = (0..NUM_HASHES).map(|_| random()).collect::<Vec<_>>();
-        let mds = MdsMatrixBabyBearExtension {};
 
-        let trace = generate_trace_rows::<Val, WIDTH, ALPHA, N_ROUNDS, MdsMatrixBabyBear>(
+        type Mds = CosetMds<Res<Val, Challenge>, 8>;
+        let mds = Mds::default();
+
+        let trace = generate_trace_rows::<Val, WIDTH, ALPHA, N_ROUNDS, Mds>(
             inputs,
             half_num_full_rounds,
             num_partial_rounds,

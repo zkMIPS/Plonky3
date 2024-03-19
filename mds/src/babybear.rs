@@ -4,8 +4,12 @@
 //! Supported sizes: 8, 12, 16, 24, 32, 64.
 //! Sizes 8 and 12 are from Plonky2. Other sizes are from Ulrich Haböck's database.
 
+use alloc::vec::Vec;
+
 use p3_baby_bear::BabyBear;
 use p3_dft::Radix2Bowers;
+use p3_field::extension::BinomialExtensionField;
+use p3_field::{AbstractExtensionField, ExtensionField, Res};
 use p3_symmetric::Permutation;
 
 use crate::util::{
@@ -29,6 +33,86 @@ impl Permutation<[BabyBear; 8]> for MdsMatrixBabyBear {
     }
 }
 impl MdsPermutation<BabyBear, 8> for MdsMatrixBabyBear {}
+
+// impl<EF: ExtensionField> Permutation<[Res<BabyBear, EF>; 8]> for MdsMatrixBabyBear {
+//     fn permute(&self, input: [Res<BabyBear, EF>; 8]) -> [Res<BabyBear, EF>; 8] {
+//         let inputs: [&[BabyBear]; 8] = input.map(|x| x.as_base_slice());
+//         let slice_len = inputs[0].len();
+
+//         let inputs_tranposed: Vec<Vec<BabyBear>> = (0..slice_len)
+//             .map(|i| {
+//                 (0..8)
+//                     .map(|j| inputs[j][i])
+//                     .collect()
+//             }).collect();
+        
+//         let outputs_transposed = inputs_tranposed
+//             .iter()
+//             .map(|x| apply_circulant_8_sml(x.clone()))
+//             .collect::<Vec<_>>();
+            
+//         let outputs: [Vec<BabyBear>; 8] = (0..8)
+//             .map(|i| {
+//                 (0..slice_len)
+//                 .map(|j| outputs_transposed[j][i])
+//                 .collect()
+//             }).collect::<Vec<_>>().try_into().unwrap();
+
+//         outputs.map(|x| Res::from_base(x))
+//     }
+
+//     fn permute_mut(&self, input: &mut [Res<BabyBear, EF>; 8]) {
+//         *input = self.permute(*input);
+//     }
+
+// }
+
+// impl Permutation<[BinomialExtensionField<BabyBear, 4>; 8]> for MdsMatrixBabyBear {
+//     fn permute(
+//         &self,
+//         input: [BinomialExtensionField<BabyBear, 4>; 8],
+//     ) -> [BinomialExtensionField<BabyBear, 4>; 8] {
+//         let inputs: [[BabyBear; 4]; 8] = input.map(|x| x.as_base_slice().try_into().unwrap());
+//         let inputs_transposed: Vec<[BabyBear; 8]> = (0..4)
+//             .map(|i| {
+//                 (0..8)
+//                     .map(|j| inputs[j][i])
+//                     .collect::<Vec<_>>()
+//                     .try_into()
+//                     .unwrap()
+//             })
+//             .collect();
+//         let outputs_transposed: Vec<[BabyBear; 8]> = (0..4)
+//             .map(|i| apply_circulant_8_sml(inputs_transposed[i]))
+//             .collect::<Vec<_>>()
+//             .try_into()
+//             .unwrap();
+//         let outputs: [Vec<BabyBear>; 8] = (0..8)
+//             .map(|i| {
+//                 (0..4)
+//                     .map(|j| outputs_transposed[j][i])
+//                     .collect::<Vec<_>>()
+//                     .try_into()
+//                     .unwrap()
+//             })
+//             .collect::<Vec<_>>()
+//             .try_into()
+//             .unwrap();
+//         outputs.map(|output| BinomialExtensionField::from_base_slice(&output))
+//     }
+
+//     fn permute_mut(&self, input: &mut [BinomialExtensionField<BabyBear, 4>; 8]) {
+//         *input = self.permute(*input);
+//     }
+// }
+
+// impl Permutation<[SymbolicExpression<BabyBear>; 8]> for MdsMatrixBabyBear {
+//     fn permute(&self, input: [SymbolicExpression<BabyBear>; 8]) -> [SymbolicExpression<BabyBear>; 8] {
+        
+//     }
+// }
+
+// impl MdsPermutation<BinomialExtensionField<BabyBear, 4>, 8> for MdsMatrixBabyBear {}
 
 impl Permutation<[BabyBear; 12]> for MdsMatrixBabyBear {
     fn permute(&self, input: [BabyBear; 12]) -> [BabyBear; 12] {
