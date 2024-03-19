@@ -338,7 +338,7 @@ where
                             height: domain.size(),
                         })
                         .collect_vec();
-                    self.mmcs.verify_batch(
+                    self.mmcs.verify(
                         batch_commit,
                         &batch_dims,
                         index,

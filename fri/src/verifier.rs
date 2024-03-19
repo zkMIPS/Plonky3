@@ -135,7 +135,7 @@ where
         }];
         config
             .mmcs
-            .verify_batch(
+            .verify(
                 commit,
                 dims,
                 index_pair,

@@ -7,6 +7,8 @@ use p3_matrix::{Dimensions, Matrix, MatrixRows};
 
 use crate::{DirectMmcs, Mmcs};
 
+/// An MMCS adapter which packs several committed base field elements into one extension field
+/// element.
 #[derive(Clone)]
 pub struct ExtensionMmcs<F, EF, InnerMmcs> {
     inner: InnerMmcs,
@@ -37,12 +39,12 @@ where
     fn open_batch(
         &self,
         index: usize,
-        prover_data: &Self::ProverData,
-    ) -> (Vec<Vec<EF>>, Self::Proof) {
+        prover_data: &[&Self::ProverData],
+    ) -> (Vec<Vec<Vec<EF>>>, Self::Proof) {
         let (opened_base_values, proof) = self.inner.open_batch(index, prover_data);
         let opened_ext_values = opened_base_values
             .into_iter()
-            .map(|row| row.chunks(EF::D).map(EF::from_base_slice).collect())
+            .map(|row_per_matrix| row_per_matrix.into_iter().map(|row| row.chunks(EF::D).map(EF::from_base_slice).collect()).collect())
             .collect();
         (opened_ext_values, proof)
     }
@@ -58,7 +60,7 @@ where
             .collect()
     }
 
-    fn verify_batch(
+    fn verify(
         &self,
         commit: &Self::Commitment,
         dimensions: &[Dimensions],
@@ -83,7 +85,7 @@ where
             })
             .collect::<Vec<_>>();
         self.inner
-            .verify_batch(commit, &base_dimensions, index, &opened_base_values, proof)
+            .verify(commit, &base_dimensions, index, &opened_base_values, proof)
     }
 }
 

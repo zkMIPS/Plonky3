@@ -35,8 +35,8 @@ pub trait Mmcs<T>: Clone {
     fn open_batch(
         &self,
         index: usize,
-        prover_data: &Self::ProverData,
-    ) -> (Vec<Vec<T>>, Self::Proof);
+        prover_data: &[&Self::ProverData],
+    ) -> (Vec<Vec<Vec<T>>>, Self::Proof);
 
     /// Get the matrices that were committed to.
     fn get_matrices<'a>(&'a self, prover_data: &'a Self::ProverData) -> Vec<Self::Mat<'a>>;
@@ -49,9 +49,9 @@ pub trait Mmcs<T>: Clone {
     }
 
     /// Get the largest height of any committed matrix.
-    fn get_max_height(&self, prover_data: &Self::ProverData) -> usize {
-        self.get_matrix_heights(prover_data)
-            .into_iter()
+    fn get_max_height(&self, prover_data: &[&Self::ProverData]) -> usize {
+        prover_data.iter()
+            .flat_map(|data| self.get_matrix_heights(data))
             .max()
             .unwrap_or_else(|| panic!("No committed matrices?"))
     }
@@ -61,7 +61,7 @@ pub trait Mmcs<T>: Clone {
     /// semantics as `open_batch`.
     /// `dimensions` is a slice whose ith element is the dimensions of the the matrix being opened
     /// in the ith opening
-    fn verify_batch(
+    fn verify(
         &self,
         commit: &Self::Commitment,
         dimensions: &[Dimensions],

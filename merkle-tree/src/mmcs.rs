@@ -52,32 +52,34 @@ where
 {
     type ProverData = FieldMerkleTree<P::Scalar, PW::Value, DIGEST_ELEMS>;
     type Commitment = Hash<P::Scalar, PW::Value, DIGEST_ELEMS>;
-    type Proof = Vec<[PW::Value; DIGEST_ELEMS]>;
+    type Proof = Vec<Vec<[PW::Value; DIGEST_ELEMS]>>;
     type Error = ();
     type Mat<'a> = RowMajorMatrixView<'a, P::Scalar> where H: 'a, C: 'a;
 
     fn open_batch(
         &self,
         index: usize,
-        prover_data: &FieldMerkleTree<P::Scalar, PW::Value, DIGEST_ELEMS>,
-    ) -> (Vec<Vec<P::Scalar>>, Vec<[PW::Value; DIGEST_ELEMS]>) {
-        let max_height = self.get_max_height(prover_data);
+        merkle_trees: &[&FieldMerkleTree<P::Scalar, PW::Value, DIGEST_ELEMS>],
+    ) -> (Vec<Vec<Vec<P::Scalar>>>, Vec<Vec<[PW::Value; DIGEST_ELEMS]>>) {
+        let max_height = self.get_max_height(merkle_trees);
         let log_max_height = log2_ceil_usize(max_height);
 
-        let openings = prover_data
-            .leaves
+        let openings = merkle_trees
             .iter()
-            .map(|matrix| {
-                let log2_height = log2_ceil_usize(matrix.height());
-                let bits_reduced = log_max_height - log2_height;
-                let reduced_index = index >> bits_reduced;
-                matrix.row(reduced_index).collect()
-            })
-            .collect_vec();
-
-        let proof = (0..log_max_height)
-            .map(|i| prover_data.digest_layers[i][(index >> i) ^ 1])
+            .map(|merkle_tree| merkle_tree.leaves
+                .iter()
+                .map(|matrix| {
+                    let log2_height = log2_ceil_usize(matrix.height());
+                    let bits_reduced = log_max_height - log2_height;
+                    let reduced_index = index >> bits_reduced;
+                    matrix.row(reduced_index).collect()
+                })
+                .collect_vec())
             .collect();
+
+        let proof = merkle_trees.iter().map(|merkle_tree| (0..log_max_height)
+            .map(|i| merkle_tree.digest_layers[i][(index >> i) ^ 1])
+            .collect()).collect();
 
         (openings, proof)
     }
@@ -89,7 +91,7 @@ where
         prover_data.leaves.iter().map(|mat| mat.as_view()).collect()
     }
 
-    fn verify_batch(
+    fn verify(
         &self,
         commit: &Self::Commitment,
         dimensions: &[Dimensions],
@@ -407,7 +409,7 @@ mod tests {
         // open the 3rd row of each matrix, mess with proof, and verify
         let (opened_values, mut proof) = mmcs.open_batch(3, &prover_data);
         proof[0][0] += F::one();
-        mmcs.verify_batch(
+        mmcs.verify(
             &commit,
             &large_mat_dims.chain(small_mat_dims).collect_vec(),
             3,
@@ -455,7 +457,7 @@ mod tests {
 
         // open the 6th row of each matrix and verify
         let (opened_values, proof) = mmcs.open_batch(6, &prover_data);
-        mmcs.verify_batch(
+        mmcs.verify(
             &commit,
             &large_mat_dims
                 .chain(medium_mat_dims)
@@ -484,7 +486,7 @@ mod tests {
 
         let (commit, prover_data) = mmcs.commit(mats);
         let (opened_values, proof) = mmcs.open_batch(17, &prover_data);
-        mmcs.verify_batch(&commit, &dims, 17, &opened_values, &proof)
+        mmcs.verify(&commit, &dims, 17, &opened_values, &proof)
             .expect("expected verification to succeed");
     }
 }
