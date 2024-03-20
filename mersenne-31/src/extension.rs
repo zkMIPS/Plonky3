@@ -1,9 +1,65 @@
 use p3_field::extension::{
-    Complex, HasComplexBinomialExtension, HasTwoAdicComplexBinomialExtension,
+    BinomiallyExtendable, Complex, HasComplexBinomialExtension, HasTwoAdicComplexBinomialExtension,
 };
 use p3_field::{field_to_array, AbstractField, TwoAdicField};
 
 use crate::Mersenne31;
+
+impl BinomiallyExtendable<3> for Mersenne31 {
+    // ```sage
+    // p = 2^31 - 1
+    // F = GF(p)
+    // R.<x> = F[]
+    // assert (x^3 - 5).is_irreducible()
+    // ```
+    fn w() -> Self {
+        Self::new(5)
+    }
+    // ```sage
+    // F(5)^((p-1)/3)
+    // ```
+    fn dth_root() -> Self {
+        Self::new(1513477735)
+    }
+    // ```sage
+    // F.extension(x^3 - 5, 'u').multiplicative_generator()
+    // ```
+    fn ext_generator() -> [Self; 3] {
+        [Self::new(10), Self::new(1), Self::zero()]
+    }
+}
+
+impl BinomiallyExtendable<7> for Mersenne31 {
+    // ```sage
+    // p = 2^31 - 1
+    // F = GF(p)
+    // R.<x> = F[]
+    // assert (x^7 - 3).is_irreducible()
+    // ```
+    fn w() -> Self {
+        Self::new(3)
+    }
+    // ```sage
+    // F(3)^((p-1)/7)
+    // ```
+    fn dth_root() -> Self {
+        Self::new(1752599774)
+    }
+    // ```sage
+    // F.extension(x^7 - 3, 'u').multiplicative_generator()
+    // ```
+    fn ext_generator() -> [Self; 7] {
+        [
+            Self::new(2),
+            Self::new(1),
+            Self::zero(),
+            Self::zero(),
+            Self::zero(),
+            Self::zero(),
+            Self::zero(),
+        ]
+    }
+}
 
 impl HasComplexBinomialExtension<2> for Mersenne31 {
     // Verifiable in Sage with
@@ -99,6 +155,18 @@ impl HasTwoAdicComplexBinomialExtension<3> for Mersenne31 {
 
 #[cfg(test)]
 mod test_cubic_extension {
+    use p3_field_testing::test_field;
+    test_field!(p3_field::extension::BinomialExtensionField<crate::Mersenne31, 3>);
+}
+
+#[cfg(test)]
+mod test_septic_extension {
+    use p3_field_testing::test_field;
+    test_field!(p3_field::extension::BinomialExtensionField<crate::Mersenne31, 7>);
+}
+
+#[cfg(test)]
+mod test_complex_cubic_extension {
     use p3_field::extension::{BinomialExtensionField, Complex};
     use p3_field_testing::{test_field, test_two_adic_extension_field};
 
@@ -113,7 +181,7 @@ mod test_cubic_extension {
 }
 
 #[cfg(test)]
-mod test_quadratic_extension {
+mod test_complex_quadratic_extension {
 
     use p3_field::extension::{BinomialExtensionField, Complex};
     use p3_field_testing::{test_field, test_two_adic_extension_field};

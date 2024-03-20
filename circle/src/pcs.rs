@@ -1,9 +1,10 @@
 use alloc::vec::Vec;
 
 use itertools::izip;
+use p3_challenger::CanSample;
 use p3_commit::{DirectMmcs, OpenedValues, Pcs};
-use p3_field::extension::ComplexExtendable;
-use p3_field::ExtensionField;
+use p3_field::extension::{Complex, ComplexExtendable};
+use p3_field::{AbstractField, ExtensionField, Field};
 use p3_matrix::dense::{RowMajorMatrix, RowMajorMatrixView};
 use p3_matrix::routines::columnwise_dot_product;
 use p3_matrix::{Matrix, MatrixRows};
@@ -28,8 +29,9 @@ pub struct ProverData<Val, MmcsData> {
 impl<Val, InputMmcs, Challenge, Challenger> Pcs<Challenge, Challenger> for CirclePcs<Val, InputMmcs>
 where
     Val: ComplexExtendable,
-    Challenge: ExtensionField<Val>,
     InputMmcs: 'static + for<'a> DirectMmcs<Val, Mat<'a> = RowMajorMatrixView<'a, Val>>,
+    Challenge: ExtensionField<Val>,
+    Challenger: CanSample<Challenge>,
 {
     type Domain = CircleDomain<Val>;
     type Commitment = InputMmcs::Commitment;
@@ -89,8 +91,11 @@ where
                 Vec<Challenge>,
             >,
         )>,
-        _challenger: &mut Challenger,
+        challenger: &mut Challenger,
     ) -> (OpenedValues<Challenge>, Self::Proof) {
+        // Batch combination challenge
+        let mu: Challenge = challenger.sample();
+
         let values: OpenedValues<Challenge> = rounds
             .into_iter()
             .map(|(data, points_for_mats)| {
@@ -143,4 +148,28 @@ where
         // todo: fri verify
         Ok(())
     }
+}
+
+fn reduce_matrix<F: ComplexExtendable>(
+    domain: CircleDomain<F>,
+    p: RowMajorMatrix<F>,
+    zeta: Complex<F>,
+    ps_at_zeta: &[F],
+    mu: F,
+) -> Vec<F> {
+    // let num = value - complex_conjugate_line(oods_point, oods_value, point);
+    // let denom = pair_vanishing(oods_point, oods_point.complex_conjugate(), point.into_ef(
+
+    p.rows()
+        .zip(domain.points())
+        .map(|(row, x)| {
+            let inv_denom = (Complex::<F>::one() - zeta.conjugate().rotate(x)).inverse();
+            izip!(row, ps_at_zeta, mu.square().powers())
+                .map(|(&p_at_x, &p_at_zeta, mu2_pow)| {
+                    let quotient = Complex::<F>::new_real(p_at_x - p_at_zeta) * inv_denom;
+                    mu2_pow * (quotient.real() + mu * quotient.imag())
+                })
+                .sum()
+        })
+        .collect()
 }
