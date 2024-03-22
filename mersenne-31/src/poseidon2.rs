@@ -2,7 +2,7 @@ use p3_field::AbstractField;
 use p3_poseidon2::{matmul_internal, DiffusionPermutation};
 use p3_symmetric::Permutation;
 
-use crate::{to_babybear_array, BabyBear, monty_reduce};
+use crate::{to_babybear_array, BabyBear};
 
 // Diffusion matrices for Babybear16 and Babybear24.
 //
@@ -38,19 +38,28 @@ const MATRIX_DIAG_24_BABYBEAR_MONTY: [BabyBear; 24] =
 // Note that if (1 + D(v)) is a valid matrix then so is r(1 + D(v)) for any constant scalar r. Hence we should operate
 // such that (1 + D(v)) is the monty form of the matrix. This should allow for some delayed reduction tricks.
 
-const MATRIX_DIAG_16_MONTY_SHIFTS: [i32; 16] = [-64, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 16];
+// const MATRIX_DIAG_16_MONTY_SHIFTS: [i32; 16] = [-64, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 16];
 
-fn matmul_internal_shift<const WIDTH: usize>(
-    state: &mut [BabyBear; WIDTH],
-    mat_internal_diag_shifts: [i32; WIDTH],
-) {
-    let sum: u64 = state.iter().cloned().map(|x| x.value as u64).sum();
-    state[0] = BabyBear{ value:monty_reduce(sum) };
-    for i in 1..WIDTH {
-        let result = ((state[i].value as u64) << mat_internal_diag_shifts[i]) + sum.clone();
-        state[i] = BabyBear{ value:monty_reduce(result) };
-    }
-}
+// fn matmul_internal_shift<const WIDTH: usize>(
+//     state: &mut [BabyBear; WIDTH],
+//     mat_internal_diag_shifts: [i32; WIDTH],
+// ) {
+//     let sum: u64 = state.iter().cloned().map(|x| x.value as u64).sum();
+//     state[0] = BabyBear{ value:monty_reduce(sum) };
+//     for i in 1..WIDTH {
+//         let result = ((state[i].value as u64) << mat_internal_diag_shifts[i]) + sum.clone();
+//         state[i] = BabyBear{ value:monty_reduce(result) };
+//     }
+// }
+
+// KoalaBear:
+// [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17]
+// [0, 1, 2, 4, 8, 16, 32, 64, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768]
+
+// Mersenne31:
+// [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17]
+// [0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 2048, 8192, 16384, 32768, 65536]
+
 
 #[derive(Debug, Clone, Default)]
 pub struct DiffusionMatrixBabybear;
@@ -71,26 +80,12 @@ impl<AF: AbstractField<F = BabyBear>> Permutation<[AF; 24]> for DiffusionMatrixB
 
 impl<AF: AbstractField<F = BabyBear>> DiffusionPermutation<AF, 24> for DiffusionMatrixBabybear {}
 
-
-#[derive(Debug, Clone, Default)]
-pub struct DiffusionMatrixBabybearScalar;
-
-impl Permutation<[BabyBear; 16]> for DiffusionMatrixBabybearScalar {
-    fn permute_mut(&self, state: &mut [BabyBear; 16]) {
-        matmul_internal_shift::<16>(state, MATRIX_DIAG_16_MONTY_SHIFTS);
-    }
-}
-
-impl DiffusionPermutation<BabyBear, 16> for DiffusionMatrixBabybearScalar {}
-
 #[cfg(test)]
 mod tests {
     use alloc::vec::Vec;
 
     use ark_ff::{BigInteger, PrimeField};
-    use p3_field::AbstractField;
     use p3_poseidon2::Poseidon2;
-    use p3_symmetric::Permutation;
     use rand::Rng;
     use zkhash::fields::babybear::FpBabyBear;
     use zkhash::poseidon2::poseidon2::Poseidon2 as Poseidon2Ref;

@@ -1,8 +1,9 @@
 use std::any::type_name;
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use p3_baby_bear::{BabyBear, DiffusionMatrixBabybear};
-use p3_field::PrimeField64;
+use p3_baby_bear::{BabyBear, DiffusionMatrixBabybear, DiffusionMatrixBabybearScalar};
+use p3_bn254_fr::{Bn254Fr, DiffusionMatrixBN254};
+use p3_field::PrimeField;
 use p3_goldilocks::{DiffusionMatrixGoldilocks, Goldilocks};
 use p3_poseidon2::{DiffusionPermutation, Poseidon2};
 use p3_symmetric::Permutation;
@@ -11,6 +12,7 @@ use rand::thread_rng;
 
 fn bench_poseidon2(c: &mut Criterion) {
     poseidon2::<BabyBear, DiffusionMatrixBabybear, 16, 7>(c);
+    poseidon2::<BabyBear, DiffusionMatrixBabybearScalar, 16, 7>(c);
     poseidon2::<BabyBear, DiffusionMatrixBabybear, 24, 7>(c);
 
     poseidon2::<Goldilocks, DiffusionMatrixGoldilocks, 8, 7>(c);
@@ -28,6 +30,21 @@ where
     let internal_mds = Diffusion::default();
 
     // TODO: Should be calculated for the particular field, width and ALPHA.
+    // For 31 bit fields the optimal parameter set [Rf, Rp] is:
+
+    // ALPHA = 3
+    //   width  16:    [8, 20]
+    //   width  24:    [8, 23]
+
+    // ALPHA = 5
+    //   width  16:    [8, 14]
+    //   width  24:    [8, 22]
+
+    // ALPHA = 7
+    //   width  16:    [8, 13]
+    //   width  24:    [8, 21]
+
+    // Need to experiment to see which collection of parameters is optimal.
     let rounds_f = 8;
     let rounds_p = 22;
 
