@@ -10,9 +10,11 @@ extern crate alloc;
 
 mod diffusion;
 mod matrix;
+mod round_numbers;
 use alloc::vec::Vec;
 
 pub use diffusion::{matmul_internal, DiffusionPermutation};
+pub use round_numbers::{poseidon_round_numbers};
 use matrix::Poseidon2MEMatrix;
 use p3_field::{AbstractField, PrimeField};
 use p3_symmetric::{CryptographicPermutation, Permutation};
