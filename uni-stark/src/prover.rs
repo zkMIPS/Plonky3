@@ -28,18 +28,19 @@ pub fn prove<
     air: &A,
     challenger: &mut SC::Challenger,
     trace: RowMajorMatrix<Val<SC>>,
+    public_values: &Vec<Val<SC>>,
 ) -> Proof<SC>
 where
     SC: StarkGenericConfig,
     A: Air<SymbolicAirBuilder<Val<SC>>> + for<'a> Air<ProverConstraintFolder<'a, SC>>,
 {
     #[cfg(debug_assertions)]
-    crate::check_constraints::check_constraints(air, &trace);
+    crate::check_constraints::check_constraints(air, &trace, public_values);
 
     let degree = trace.height();
     let log_degree = log2_strict_usize(degree);
 
-    let log_quotient_degree = get_log_quotient_degree::<Val<SC>, A>(air);
+    let log_quotient_degree = get_log_quotient_degree::<Val<SC>, A>(air, public_values.len());
     let quotient_degree = 1 << log_quotient_degree;
 
     let pcs = config.pcs();
@@ -58,6 +59,7 @@ where
 
     let quotient_values = quotient_values(
         air,
+        public_values,
         trace_domain,
         quotient_domain,
         trace_on_quotient_domain,
@@ -66,8 +68,6 @@ where
     let quotient_flat = RowMajorMatrix::new_col(quotient_values).flatten_to_base();
     let quotient_chunks = quotient_domain.split_evals(quotient_degree, quotient_flat);
     let qc_domains = quotient_domain.split_domains(quotient_degree);
-
-    // let quotient_chunks = quotient_domain.decompose(quotient_flat, degree);
 
     let (quotient_commit, quotient_data) = info_span!("commit to quotient poly chunks")
         .in_scope(|| pcs.commit(izip!(qc_domains, quotient_chunks).collect_vec()));
@@ -79,7 +79,7 @@ where
     };
 
     let zeta: SC::Challenge = challenger.sample();
-    let zeta_next = trace_domain.next_point(zeta);
+    let zeta_next = trace_domain.next_point(zeta).unwrap();
 
     let (opened_values, opening_proof) = pcs.open(
         vec![
@@ -111,6 +111,7 @@ where
 #[instrument(name = "compute quotient polynomial", skip_all)]
 fn quotient_values<SC, A, Mat>(
     air: &A,
+    public_values: &Vec<Val<SC>>,
     trace_domain: Domain<SC>,
     quotient_domain: Domain<SC>,
     trace_on_quotient_domain: Mat,
@@ -164,6 +165,7 @@ where
                     local: &local,
                     next: &next,
                 },
+                public_values,
                 is_first_row,
                 is_last_row,
                 is_transition,
@@ -179,7 +181,7 @@ where
             (0..PackedVal::<SC>::WIDTH).map(move |idx_in_packing| {
                 let quotient_value = (0..<SC::Challenge as AbstractExtensionField<Val<SC>>>::D)
                     .map(|coeff_idx| quotient.as_base_slice()[coeff_idx].as_slice()[idx_in_packing])
-                    .collect_vec();
+                    .collect::<Vec<_>>();
                 SC::Challenge::from_base_slice(&quotient_value)
             })
         })

@@ -27,7 +27,6 @@ const MATRIX_DIAG_16_BABYBEAR_MONTY: [BabyBear; 16] =
 const MATRIX_DIAG_24_BABYBEAR_MONTY: [BabyBear; 24] =
     to_babybear_array(MATRIX_DIAG_24_BABYBEAR_U32);
 
-
 // With some more work we can find more optimal choices for v:
 // Two optimised diffusion matrices for Babybear16:
 // Small entries: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17]
@@ -71,7 +70,6 @@ impl<AF: AbstractField<F = BabyBear>> Permutation<[AF; 24]> for DiffusionMatrixB
 
 impl<AF: AbstractField<F = BabyBear>> DiffusionPermutation<AF, 24> for DiffusionMatrixBabybear {}
 
-
 #[derive(Debug, Clone, Default)]
 pub struct DiffusionMatrixBabybearScalar;
 
@@ -91,6 +89,7 @@ mod tests {
     use p3_field::AbstractField;
     use p3_poseidon2::Poseidon2;
     use p3_symmetric::Permutation;
+
     use rand::Rng;
     use zkhash::fields::babybear::FpBabyBear;
     use zkhash::poseidon2::poseidon2::Poseidon2 as Poseidon2Ref;

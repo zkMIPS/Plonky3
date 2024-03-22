@@ -18,11 +18,13 @@ fn bench_poseidon2(c: &mut Criterion) {
     poseidon2::<Goldilocks, DiffusionMatrixGoldilocks, 8, 7>(c);
     poseidon2::<Goldilocks, DiffusionMatrixGoldilocks, 12, 7>(c);
     poseidon2::<Goldilocks, DiffusionMatrixGoldilocks, 16, 7>(c);
+
+    poseidon2::<Bn254Fr, DiffusionMatrixBN254, 3, 5>(c);
 }
 
 fn poseidon2<F, Diffusion, const WIDTH: usize, const D: u64>(c: &mut Criterion)
 where
-    F: PrimeField64,
+    F: PrimeField,
     Standard: Distribution<F>,
     Diffusion: DiffusionPermutation<F, WIDTH> + Default,
 {
