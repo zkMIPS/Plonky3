@@ -2,7 +2,7 @@ use p3_field::AbstractField;
 use p3_poseidon2::{matmul_internal, DiffusionPermutation};
 use p3_symmetric::Permutation;
 
-use crate::{to_babybear_array, BabyBear, monty_reduce};
+use crate::{monty_reduce, to_babybear_array, BabyBear};
 
 // Diffusion matrices for Babybear16 and Babybear24.
 //
@@ -37,17 +37,22 @@ const MATRIX_DIAG_24_BABYBEAR_MONTY: [BabyBear; 24] =
 // Note that if (1 + D(v)) is a valid matrix then so is r(1 + D(v)) for any constant scalar r. Hence we should operate
 // such that (1 + D(v)) is the monty form of the matrix. This should allow for some delayed reduction tricks.
 
-const MATRIX_DIAG_16_MONTY_SHIFTS: [i32; 16] = [-64, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 16];
+const MATRIX_DIAG_16_MONTY_SHIFTS: [i32; 16] =
+    [-64, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 16];
 
 fn matmul_internal_shift<const WIDTH: usize>(
     state: &mut [BabyBear; WIDTH],
     mat_internal_diag_shifts: [i32; WIDTH],
 ) {
     let sum: u64 = state.iter().cloned().map(|x| x.value as u64).sum();
-    state[0] = BabyBear{ value:monty_reduce(sum) };
+    state[0] = BabyBear {
+        value: monty_reduce(sum),
+    };
     for i in 1..WIDTH {
-        let result = ((state[i].value as u64) << mat_internal_diag_shifts[i]) + sum.clone();
-        state[i] = BabyBear{ value:monty_reduce(result) };
+        let result = ((state[i].value as u64) << mat_internal_diag_shifts[i]) + sum;
+        state[i] = BabyBear {
+            value: monty_reduce(result),
+        };
     }
 }
 
@@ -89,7 +94,6 @@ mod tests {
     use p3_field::AbstractField;
     use p3_poseidon2::Poseidon2;
     use p3_symmetric::Permutation;
-
     use rand::Rng;
     use zkhash::fields::babybear::FpBabyBear;
     use zkhash::poseidon2::poseidon2::Poseidon2 as Poseidon2Ref;
