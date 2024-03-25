@@ -32,21 +32,7 @@ where
     let internal_mds = Diffusion::default();
 
     // TODO: Should be calculated for the particular field, width and ALPHA.
-    // For 31 bit fields the optimal parameter set [Rf, Rp] is:
-
-    // ALPHA = 3
-    //   width  16:    [8, 20]
-    //   width  24:    [8, 23]
-
-    // ALPHA = 5
-    //   width  16:    [8, 14]
-    //   width  24:    [8, 22]
-
-    // ALPHA = 7
-    //   width  16:    [8, 13]
-    //   width  24:    [8, 21]
-
-    // Need to experiment to see which collection of parameters is optimal.
+    
     let rounds_f = 8;
     let rounds_p = 22;
 
