@@ -16,11 +16,13 @@ mod complex;
 mod dft;
 mod extension;
 mod mds;
+mod poseidon2;
 mod mersenne_31;
 mod radix_2_dit;
 
 pub use dft::Mersenne31Dft;
 pub use mds::*;
+pub use poseidon2::DiffusionMatrixMersenne31;
 pub use mersenne_31::*;
 pub use radix_2_dit::Mersenne31ComplexRadix2Dit;
 

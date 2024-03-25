@@ -2,6 +2,7 @@ use std::any::type_name;
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use p3_baby_bear::{BabyBear, DiffusionMatrixBabybear, DiffusionMatrixBabybearScalar};
+use p3_mersenne_31::{Mersenne31, DiffusionMatrixMersenne31};
 use p3_bn254_fr::{Bn254Fr, DiffusionMatrixBN254};
 use p3_field::PrimeField;
 use p3_goldilocks::{DiffusionMatrixGoldilocks, Goldilocks};
@@ -14,6 +15,8 @@ fn bench_poseidon2(c: &mut Criterion) {
     poseidon2::<BabyBear, DiffusionMatrixBabybear, 16, 7>(c);
     poseidon2::<BabyBear, DiffusionMatrixBabybearScalar, 16, 7>(c);
     poseidon2::<BabyBear, DiffusionMatrixBabybear, 24, 7>(c);
+
+    poseidon2::<Mersenne31, DiffusionMatrixMersenne31, 16, 5>(c);
 
     poseidon2::<Goldilocks, DiffusionMatrixGoldilocks, 8, 7>(c);
     poseidon2::<Goldilocks, DiffusionMatrixGoldilocks, 12, 7>(c);

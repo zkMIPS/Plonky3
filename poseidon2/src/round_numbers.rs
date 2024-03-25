@@ -21,3 +21,15 @@ pub fn poseidon_round_numbers<F: PrimeField32>(width: u64, alpha: u64) -> (u32, 
 		_ => panic!("The given pair of width and alpha has not been checked"),
 	}
 }
+
+
+
+// (3, 8) => (8, 41)
+// (3, 12) => (8, 42)
+// (3, 16) => (8, 22)
+// (7, 8) => (8, 22)
+// (7, 12) => (8, 22)
+// (7, 16) => (8, 22)
+// (11, 8) => (8, 17)
+// (11, 12) => (8, 18)
+// (11, 16) => (8, 18)
