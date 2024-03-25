@@ -10,12 +10,12 @@ use serde::{Deserialize, Serialize};
     deserialize = "Witness: Deserialize<'de>"
 ))]
 pub struct FriProof<F: Field, M: Mmcs<F>, Witness> {
-    pub(crate) commit_phase_commits: Vec<M::Commitment>,
-    pub(crate) query_proofs: Vec<QueryProof<F, M>>,
+    pub commit_phase_commits: Vec<M::Commitment>,
+    pub query_proofs: Vec<QueryProof<F, M>>,
     // This could become Vec<FC::Challenge> if this library was generalized to support non-constant
     // final polynomials.
-    pub(crate) final_poly: F,
-    pub(crate) pow_witness: Witness,
+    pub final_poly: F,
+    pub pow_witness: Witness,
 }
 
 #[derive(Serialize, Deserialize)]
