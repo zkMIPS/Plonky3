@@ -1,4 +1,3 @@
-use p3_field::AbstractField;
 use p3_poseidon2::{matmul_internal, DiffusionPermutation};
 use p3_symmetric::Permutation;
 
@@ -22,9 +21,9 @@ const MATRIX_DIAG_24_BABYBEAR_U32: [u32; 24] = [
 // Here 1 is the constant matrix of 1's and D(v) is the diagonal matrix with diagonal given by v.
 
 // Convert the above arrays of u32's into arrays of BabyBear field elements saved in MONTY form.
-const MATRIX_DIAG_16_BABYBEAR_MONTY: [BabyBear; 16] =
+pub(crate) const MATRIX_DIAG_16_BABYBEAR_MONTY: [BabyBear; 16] =
     to_babybear_array(MATRIX_DIAG_16_BABYBEAR_U32);
-const MATRIX_DIAG_24_BABYBEAR_MONTY: [BabyBear; 24] =
+pub(crate) const MATRIX_DIAG_24_BABYBEAR_MONTY: [BabyBear; 24] =
     to_babybear_array(MATRIX_DIAG_24_BABYBEAR_U32);
 
 // With some more work we can find more optimal choices for v:
@@ -59,21 +58,21 @@ fn matmul_internal_shift<const WIDTH: usize>(
 #[derive(Debug, Clone, Default)]
 pub struct DiffusionMatrixBabybear;
 
-impl<AF: AbstractField<F = BabyBear>> Permutation<[AF; 16]> for DiffusionMatrixBabybear {
-    fn permute_mut(&self, state: &mut [AF; 16]) {
-        matmul_internal::<BabyBear, AF, 16>(state, MATRIX_DIAG_16_BABYBEAR_MONTY);
+impl Permutation<[BabyBear; 16]> for DiffusionMatrixBabybear {
+    fn permute_mut(&self, state: &mut [BabyBear; 16]) {
+        matmul_internal::<BabyBear, BabyBear, 16>(state, MATRIX_DIAG_16_BABYBEAR_MONTY);
     }
 }
 
-impl<AF: AbstractField<F = BabyBear>> DiffusionPermutation<AF, 16> for DiffusionMatrixBabybear {}
+impl DiffusionPermutation<BabyBear, 16> for DiffusionMatrixBabybear {}
 
-impl<AF: AbstractField<F = BabyBear>> Permutation<[AF; 24]> for DiffusionMatrixBabybear {
-    fn permute_mut(&self, state: &mut [AF; 24]) {
-        matmul_internal::<BabyBear, AF, 24>(state, MATRIX_DIAG_24_BABYBEAR_MONTY);
+impl Permutation<[BabyBear; 24]> for DiffusionMatrixBabybear {
+    fn permute_mut(&self, state: &mut [BabyBear; 24]) {
+        matmul_internal::<BabyBear, BabyBear, 24>(state, MATRIX_DIAG_24_BABYBEAR_MONTY);
     }
 }
 
-impl<AF: AbstractField<F = BabyBear>> DiffusionPermutation<AF, 24> for DiffusionMatrixBabybear {}
+impl DiffusionPermutation<BabyBear, 24> for DiffusionMatrixBabybear {}
 
 #[derive(Debug, Clone, Default)]
 pub struct DiffusionMatrixBabybearScalar;
