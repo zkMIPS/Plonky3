@@ -54,6 +54,11 @@ impl<F: BinomiallyExtendable<D>, const D: usize> ExtensionField<F>
 impl<F: BinomiallyExtendable<D>, const D: usize> HasFrobenius<F> for BinomialExtensionField<F, D> {
     /// FrobeniusField automorphisms: x -> x^n, where n is the order of BaseField.
     fn frobenius(&self) -> Self {
+        if D == 2 {
+            let mut me = *self;
+            me.value[1] = -me.value[1];
+            return me;
+        }
         self.repeated_frobenius(1)
     }
 

@@ -12,7 +12,7 @@ use crate::MatrixRows;
 /// would require a different method.
 /// TODO: make faster (currently ~100ms of m31_keccak)
 #[instrument(skip_all, fields(dims = %m.dimensions()))]
-pub fn columnwise_dot_product<F, EF, M>(m: M, v: impl Iterator<Item = EF>) -> Vec<EF>
+pub fn columnwise_dot_product<F, EF, M>(m: &M, v: impl Iterator<Item = EF>) -> Vec<EF>
 where
     F: Field,
     EF: ExtensionField<F>,

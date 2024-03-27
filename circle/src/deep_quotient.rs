@@ -4,11 +4,16 @@ use p3_field::{
     extension::{Complex, ComplexExtendable, HasFrobenius},
     AbstractField, ExtensionField, Field,
 };
-use p3_matrix::{dense::RowMajorMatrix, Matrix};
+use p3_matrix::{
+    dense::{RowMajorMatrix, RowMajorMatrixView, RowMajorMatrixViewMut},
+    routines::columnwise_dot_product,
+    Matrix, MatrixRowSlicesMut,
+};
+use p3_util::log2_strict_usize;
 
-use crate::domain::CircleDomain;
+use crate::{domain::CircleDomain, util::v_n};
 
-fn frob_line<F: ComplexExtendable, EF: HasFrobenius<F>>(
+pub(crate) fn frob_line<F: ComplexExtendable, EF: HasFrobenius<F>>(
     point: Complex<EF>,
     value: EF,
     p: Complex<F>,
@@ -20,7 +25,11 @@ fn frob_line<F: ComplexExtendable, EF: HasFrobenius<F>>(
 }
 
 // A vanishing polynomial on 2 circle points.
-fn pair_vanishing<F: Field>(excluded0: Complex<F>, excluded1: Complex<F>, p: Complex<F>) -> F {
+pub(crate) fn pair_vanishing<F: Field>(
+    excluded0: Complex<F>,
+    excluded1: Complex<F>,
+    p: Complex<F>,
+) -> F {
     // The algorithm check computes the area of the triangle formed by the
     // 3 points. This is done using the determinant of:
     // | p.x  p.y  1 |
@@ -79,28 +88,55 @@ fn deep_quotient<F: ComplexExtendable, EF: HasFrobenius<F>>(
     )
 }
 
-fn reduce_matrix<F: ComplexExtendable>(
+fn reduce_matrix<F: ComplexExtendable, EF: ExtensionField<F>>(
     domain: CircleDomain<F>,
     p: RowMajorMatrix<F>,
-    zeta: Complex<F>,
-    ps_at_zeta: &[F],
-    mu: F,
-) -> Vec<F> {
-    // let num = value - complex_conjugate_line(oods_point, oods_value, point);
-    // let denom = pair_vanishing(oods_point, oods_point.complex_conjugate(), point.into_ef(
-
+    zeta: Complex<EF>,
+    ps_at_zeta: &[EF],
+    mu: EF,
+) -> Vec<EF> {
+    let mu_pow_width = mu.exp_u64(p.width() as u64);
     p.rows()
         .zip(domain.points())
         .map(|(row, x)| {
-            let inv_denom = (Complex::<F>::one() - zeta.conjugate().rotate(x)).inverse();
-            izip!(row, ps_at_zeta, mu.square().powers())
-                .map(|(&p_at_x, &p_at_zeta, mu2_pow)| {
-                    let quotient = Complex::<F>::new_real(p_at_x - p_at_zeta) * inv_denom;
-                    mu2_pow * (quotient.real() + mu * quotient.imag())
-                })
-                .sum()
+            let x_rotate_zeta: Complex<EF> = x.rotate(zeta.conjugate());
+            let v_gamma_re: EF = EF::one() - x_rotate_zeta.real();
+            let v_gamma_im: EF = x_rotate_zeta.imag();
+            let lhs: EF = (v_gamma_re - mu_pow_width * v_gamma_im)
+                / (v_gamma_re.square() + v_gamma_im.square());
+            lhs * izip!(row, ps_at_zeta, mu.powers())
+                .map(|(&p_at_x, &p_at_zeta, mu_pow)| mu_pow * (-p_at_zeta + p_at_x))
+                .sum::<EF>()
         })
         .collect()
+}
+
+fn extract_lambda<F: ComplexExtendable>(
+    domain: CircleDomain<F>,
+    lde: &mut impl MatrixRowSlicesMut<F>,
+    rate_bits: usize,
+) -> Vec<F> {
+    let log_height = log2_strict_usize(lde.height());
+    let v_d = domain
+        .points()
+        .map(|x| v_n(x.real(), log_height - rate_bits))
+        .collect_vec();
+    let v_d_2: F = v_d.iter().map(|x| x.square()).sum();
+    let lde_dot_v_d = columnwise_dot_product(lde, v_d.iter().copied());
+    let lambdas = lde_dot_v_d.iter().copied().map(|x| x / v_d_2).collect_vec();
+
+    #[cfg(test)]
+    dbg!(&lde_dot_v_d);
+    #[cfg(test)]
+    dbg!(&lambdas);
+
+    for (i, v_x) in v_d.into_iter().enumerate() {
+        for (c, &lambda) in izip!(lde.row_slice_mut(i), &lambdas) {
+            *c -= lambda * v_x;
+        }
+    }
+
+    lambdas
 }
 
 #[cfg(test)]
@@ -123,7 +159,7 @@ mod tests {
     use super::*;
 
     type F = Mersenne31;
-    type EF = BinomialExtensionField<Mersenne31, 7>;
+    type EF = BinomialExtensionField<Mersenne31, 2>;
     // type EF = Complex<Complex<Mersenne31>>;
 
     fn open_mat_at_point(
@@ -134,7 +170,7 @@ mod tests {
         let log_n = log2_strict_usize(p.height());
         let basis: Vec<_> = domain.lagrange_basis(pt);
         let v_n_at_zeta = v_n(pt.real(), log_n) - v_n(domain.shift.real(), log_n);
-        columnwise_dot_product(p, basis.into_iter())
+        columnwise_dot_product(&p, basis.into_iter())
             .into_iter()
             .map(|x| x * v_n_at_zeta)
             .collect()
@@ -152,7 +188,7 @@ mod tests {
     #[test]
     fn test_quotienting() {
         let mut rng = thread_rng();
-        let log_n = 3;
+        let log_n = 2;
         let cfft = Cfft::<F>::default();
 
         let trace_domain = CircleDomain::<F>::standard(log_n);
@@ -170,11 +206,19 @@ mod tests {
 
         assert!(is_low_degree(&lde));
 
-        let quotient = deep_quotient(lde_domain, lde, zeta_pt, &trace_at_zeta);
-        dbg!(cfft.cfft_batch(quotient.flatten_to_base()));
+        // let quotient = deep_quotient(lde_domain, lde.clone(), zeta_pt, &trace_at_zeta);
+        // dbg!(cfft.cfft_batch(quotient.flatten_to_base()));
 
-        // let mu: F = rng.gen();
-        // let quotient = reduce_matrix(lde_domain, lde, zeta_pt, &trace_at_zeta, mu);
-        // dbg!(cfft.cfft(quotient));
+        let mu: EF = rng.gen();
+        let q_vec = reduce_matrix(lde_domain, lde.clone(), zeta_pt, &trace_at_zeta, mu);
+        let q_flat = RowMajorMatrix::new_col(q_vec).flatten_to_base();
+
+        dbg!(cfft.cfft_batch(q_flat.clone()));
+
+        let mut q_corr = q_flat.clone();
+        let lambdas = extract_lambda(lde_domain, &mut q_corr, 1);
+        dbg!(&lambdas);
+
+        dbg!(cfft.cfft_batch(q_corr.clone()));
     }
 }

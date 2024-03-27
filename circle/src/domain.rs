@@ -352,7 +352,7 @@ mod tests {
         let basis = d.lagrange_basis(zeta);
         let v_n_at_zeta = v_n(zeta.real(), log_n) - v_n(shift.real(), log_n);
 
-        let ys = columnwise_dot_product(evals, basis.into_iter())
+        let ys = columnwise_dot_product(&evals, basis.into_iter())
             .into_iter()
             .map(|x| x * v_n_at_zeta)
             .collect_vec();

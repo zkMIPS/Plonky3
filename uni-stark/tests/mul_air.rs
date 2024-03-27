@@ -265,8 +265,7 @@ fn do_test_m31_circle(
     log_n: usize,
 ) -> Result<(), VerificationError> {
     type Val = Mersenne31;
-    // type Challenge = BinomialExtensionField<Val, 4>;
-    type Challenge = Mersenne31;
+    type Challenge = BinomialExtensionField<Val, 3>;
 
     type ByteHash = Keccak256Hash;
     type FieldHash = SerializingHasher32<ByteHash>;

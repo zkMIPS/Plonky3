@@ -1,17 +1,20 @@
+use alloc::vec;
 use alloc::vec::Vec;
 
-use itertools::izip;
+use itertools::{izip, Itertools};
 use p3_challenger::CanSample;
 use p3_commit::{DirectMmcs, OpenedValues, Pcs};
-use p3_field::extension::{Complex, ComplexExtendable};
-use p3_field::{AbstractField, ExtensionField, Field};
+use p3_field::extension::{Complex, ComplexExtendable, HasFrobenius};
+use p3_field::{batch_multiplicative_inverse, AbstractField, ExtensionField, Field};
 use p3_matrix::dense::{RowMajorMatrix, RowMajorMatrixView};
 use p3_matrix::routines::columnwise_dot_product;
 use p3_matrix::{Matrix, MatrixRows};
+use p3_maybe_rayon::prelude::*;
 use p3_util::log2_strict_usize;
-use tracing::instrument;
+use tracing::{info_span, instrument};
 
 use crate::cfft::Cfft;
+use crate::deep_quotient::{frob_line, pair_vanishing};
 use crate::domain::CircleDomain;
 use crate::util::{univariate_to_point, v_n};
 
@@ -30,7 +33,7 @@ impl<Val, InputMmcs, Challenge, Challenger> Pcs<Challenge, Challenger> for Circl
 where
     Val: ComplexExtendable,
     InputMmcs: 'static + for<'a> DirectMmcs<Val, Mat<'a> = RowMajorMatrixView<'a, Val>>,
-    Challenge: ExtensionField<Val>,
+    Challenge: ExtensionField<Val> + HasFrobenius<Val>,
     Challenger: CanSample<Challenge>,
 {
     type Domain = CircleDomain<Val>;
@@ -95,6 +98,7 @@ where
     ) -> (OpenedValues<Challenge>, Self::Proof) {
         // Batch combination challenge
         let mu: Challenge = challenger.sample();
+        let mut reduced_openings: [Option<Vec<Challenge>>; 32] = core::array::from_fn(|_| None);
 
         let values: OpenedValues<Challenge> = rounds
             .into_iter()
@@ -102,18 +106,54 @@ where
                 let mats = self.mmcs.get_matrices(&data.mmcs_data);
                 izip!(&data.committed_domains, mats, points_for_mats)
                     .map(|(domain, mat, points_for_mat)| {
-                        let log_n = log2_strict_usize(mat.height());
+                        let log_height = log2_strict_usize(mat.height());
+                        let reduced_opening_for_log_height = reduced_openings[log_height]
+                            .get_or_insert_with(|| vec![Challenge::zero(); mat.height()]);
                         points_for_mat
                             .into_iter()
                             .map(|zeta| {
                                 let zeta_point = univariate_to_point(zeta).unwrap();
                                 let basis: Vec<Challenge> = domain.lagrange_basis(zeta_point);
-                                let v_n_at_zeta =
-                                    v_n(zeta_point.real(), log_n) - v_n(domain.shift.real(), log_n);
-                                columnwise_dot_product(mat, basis.into_iter())
+                                let v_n_at_zeta = v_n(zeta_point.real(), log_height)
+                                    - v_n(domain.shift.real(), log_height);
+                                // todo: we only need half of the values to interpolate, but how?
+                                let ps_at_zeta = columnwise_dot_product(&mat, basis.into_iter())
                                     .into_iter()
                                     .map(|x| x * v_n_at_zeta)
-                                    .collect()
+                                    .collect();
+
+                                let denoms = domain
+                                    .points()
+                                    .map(|p| {
+                                        pair_vanishing(
+                                            zeta_point,
+                                            Complex::new(
+                                                zeta_point.real().frobenius(),
+                                                zeta_point.imag().frobenius(),
+                                            ),
+                                            Complex::new(p.real().into(), p.imag().into()),
+                                        )
+                                    })
+                                    .collect_vec();
+                                let inv_denoms = batch_multiplicative_inverse(&denoms);
+
+                                info_span!("reduce rows").in_scope(|| {
+                                    reduced_opening_for_log_height
+                                        .par_iter_mut()
+                                        .zip_eq(mat.par_rows())
+                                        .zip(inv_denoms)
+                                        .zip(domain.points())
+                                        .for_each(|(((reduced_opening, row), inv_denom), x)| {
+                                            for (&p_at_x, &p_at_zeta) in izip!(row, &ps_at_zeta) {
+                                                *reduced_opening *= mu;
+                                                *reduced_opening +=
+                                                    (-frob_line(zeta_point, p_at_zeta, x) + p_at_x)
+                                                        * inv_denom;
+                                            }
+                                        });
+                                });
+
+                                ps_at_zeta
                             })
                             .collect()
                     })
