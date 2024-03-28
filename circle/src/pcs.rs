@@ -2,11 +2,11 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use itertools::{izip, Itertools};
-use p3_challenger::CanSample;
+use p3_challenger::{CanObserve, CanSample, GrindingChallenger};
 use p3_commit::{DirectMmcs, OpenedValues, Pcs};
 use p3_field::extension::{Complex, ComplexExtendable, HasFrobenius};
 use p3_field::{batch_multiplicative_inverse, AbstractField, ExtensionField, Field};
-use p3_fri::PowersReducer;
+use p3_fri::{FriConfig, PowersReducer};
 use p3_matrix::dense::{RowMajorMatrix, RowMajorMatrixView};
 use p3_matrix::routines::columnwise_dot_product;
 use p3_matrix::{Matrix, MatrixRows};
@@ -17,12 +17,15 @@ use tracing::{info_span, instrument};
 use crate::cfft::Cfft;
 use crate::deep_quotient::{extract_lambda, is_low_degree};
 use crate::domain::CircleDomain;
+use crate::folding::fold_bivariate;
+use crate::fri;
 use crate::util::{univariate_to_point, v_n};
 
-pub struct CirclePcs<Val, InputMmcs> {
+pub struct CirclePcs<Val, InputMmcs, FriMmcs> {
     pub log_blowup: usize,
     pub cfft: Cfft<Val>,
     pub mmcs: InputMmcs,
+    pub fri_config: FriConfig<FriMmcs>,
 }
 
 pub struct ProverData<Val, MmcsData> {
@@ -30,12 +33,14 @@ pub struct ProverData<Val, MmcsData> {
     mmcs_data: MmcsData,
 }
 
-impl<Val, InputMmcs, Challenge, Challenger> Pcs<Challenge, Challenger> for CirclePcs<Val, InputMmcs>
+impl<Val, InputMmcs, FriMmcs, Challenge, Challenger> Pcs<Challenge, Challenger>
+    for CirclePcs<Val, InputMmcs, FriMmcs>
 where
     Val: ComplexExtendable,
     InputMmcs: 'static + for<'a> DirectMmcs<Val, Mat<'a> = RowMajorMatrixView<'a, Val>>,
+    FriMmcs: DirectMmcs<Challenge>,
     Challenge: ExtensionField<Val> + HasFrobenius<Val>,
-    Challenger: CanSample<Challenge>,
+    Challenger: GrindingChallenger + CanSample<Challenge> + CanObserve<FriMmcs::Commitment>,
 {
     type Domain = CircleDomain<Val>;
     type Commitment = InputMmcs::Commitment;
@@ -201,27 +206,25 @@ where
             })
             .collect();
 
-        for (i, ro) in reduced_openings.iter().enumerate() {
-            if let Some(ro) = ro {
-                dbg!(
-                    i,
-                    is_low_degree(&RowMajorMatrix::new_col(ro.clone()).flatten_to_base())
-                );
-                let mut ro_corr: Vec<Challenge> = ro.clone();
-                let lambda = extract_lambda(
-                    CircleDomain::standard(i - self.log_blowup),
-                    CircleDomain::standard(i),
-                    &mut ro_corr[..],
-                );
-                dbg!(
-                    lambda,
-                    is_low_degree(&RowMajorMatrix::new_col(ro_corr.clone()).flatten_to_base())
-                );
-                assert!(is_low_degree(
-                    &RowMajorMatrix::new_col(ro_corr.clone()).flatten_to_base()
-                ));
-            }
-        }
+        // We do bivariate fold now, so can't have a singleton poly
+        assert!(reduced_openings[0].is_none());
+        // Do the first circle fold for all polys with the same beta
+        let bivariate_beta: Challenge = challenger.sample();
+
+        let fri_input: [Option<Vec<Challenge>>; 32] = core::array::from_fn(|i| {
+            let mut ro: Vec<Challenge> = reduced_openings.get(i + 1)?.as_ref()?.clone();
+            let _lambda = extract_lambda(
+                CircleDomain::standard(i + 1 - self.log_blowup),
+                CircleDomain::standard(i + 1),
+                &mut ro,
+            );
+            assert!(is_low_degree(
+                &RowMajorMatrix::new_col(ro.clone()).flatten_to_base()
+            ));
+            Some(fold_bivariate(ro, bivariate_beta))
+        });
+
+        let fri_proof = fri::prove(&self.fri_config, &fri_input, challenger);
 
         // todo: fri prove
         (values, ())

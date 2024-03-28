@@ -49,18 +49,19 @@ fn main() -> Result<(), VerificationError> {
 
     type Challenger = SerializingChallenger32<Val, HashChallenger<u8, ByteHash, 32>>;
 
-    let _fri_config = FriConfig {
+    let fri_config = FriConfig {
         log_blowup: 1,
         num_queries: 100,
         proof_of_work_bits: 16,
         mmcs: challenge_mmcs,
     };
 
-    type Pcs = CirclePcs<Val, ValMmcs>;
+    type Pcs = CirclePcs<Val, ValMmcs, ChallengeMmcs>;
     let pcs = Pcs {
         log_blowup: 1,
         cfft: Cfft::default(),
         mmcs: val_mmcs,
+        fri_config,
     };
 
     type MyConfig = StarkConfig<Pcs, Challenge, Challenger>;

@@ -8,6 +8,7 @@ extern crate alloc;
 mod cfft;
 mod deep_quotient;
 mod domain;
+mod folding;
 mod fri;
 mod pcs;
 mod twiddles;

@@ -18,7 +18,7 @@ use crate::{
     field_to_array, AbstractExtensionField, AbstractField, ExtensionField, Packable, TwoAdicField,
 };
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash, Serialize, Deserialize)]
 pub struct BinomialExtensionField<AF, const D: usize> {
     #[serde(
         with = "p3_util::array_serialization",
