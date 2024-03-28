@@ -416,7 +416,7 @@ fn from_u62(input: u64) -> Mersenne31 {
 #[inline]
 #[must_use]
 pub(crate) const fn to_mersenne31_array<const N: usize>(input: [u32; N]) -> [Mersenne31; N] {
-    let mut output = [Mersenne31 { value: 0} ; N];
+    let mut output = [Mersenne31 { value: 0 }; N];
     let mut i = 0;
     loop {
         if i == N {

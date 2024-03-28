@@ -2,10 +2,10 @@ use std::any::type_name;
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use p3_baby_bear::{BabyBear, DiffusionMatrixBabybear, DiffusionMatrixBabybearScalar};
-use p3_mersenne_31::{Mersenne31, DiffusionMatrixMersenne31};
 use p3_bn254_fr::{Bn254Fr, DiffusionMatrixBN254};
 use p3_field::PrimeField;
 use p3_goldilocks::{DiffusionMatrixGoldilocks, Goldilocks};
+use p3_mersenne_31::{DiffusionMatrixMersenne31, Mersenne31};
 use p3_poseidon2::{DiffusionPermutation, Poseidon2};
 use p3_symmetric::Permutation;
 use rand::distributions::{Distribution, Standard};
@@ -35,7 +35,7 @@ where
     let internal_mds = Diffusion::default();
 
     // TODO: Should be calculated for the particular field, width and ALPHA.
-    
+
     let rounds_f = 8;
     let rounds_p = 22;
 

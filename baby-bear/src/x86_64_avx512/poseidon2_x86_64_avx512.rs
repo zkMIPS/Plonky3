@@ -1,7 +1,10 @@
 use p3_poseidon2::{matmul_internal, DiffusionPermutation};
 use p3_symmetric::Permutation;
 
-use crate::{BabyBear, MATRIX_DIAG_16_BABYBEAR_MONTY, MATRIX_DIAG_24_BABYBEAR_MONTY, DiffusionMatrixBabybear, PackedBabyBearAVX512};
+use crate::{
+    BabyBear, DiffusionMatrixBabybear, PackedBabyBearAVX512, MATRIX_DIAG_16_BABYBEAR_MONTY,
+    MATRIX_DIAG_24_BABYBEAR_MONTY,
+};
 
 impl Permutation<[PackedBabyBearAVX512; 16]> for DiffusionMatrixBabybear {
     fn permute_mut(&self, state: &mut [PackedBabyBearAVX512; 16]) {

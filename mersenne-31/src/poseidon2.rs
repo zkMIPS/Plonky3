@@ -1,8 +1,8 @@
-use p3_field::{AbstractField};
+use p3_field::AbstractField;
 use p3_poseidon2::{matmul_internal, DiffusionPermutation};
 use p3_symmetric::Permutation;
 
-use crate::{Mersenne31, to_mersenne31_array};
+use crate::{to_mersenne31_array, Mersenne31};
 
 // Two optimised diffusion matrices for Mersenne31/16:
 
@@ -12,10 +12,11 @@ use crate::{Mersenne31, to_mersenne31_array};
 // = [0, 2^0, 2^1, 2^2, 2^3, 2^4, 2^5, 2^6, 2^7, 2^8, 2^9, 2^11, 2^14, 2^15, 2^16, 2^17]
 
 const MATRIX_DIAG_16_MERSENNE31_U32: [u32; 16] = [
-    0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 2048, 8192, 16384, 32768, 65536
+    0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 2048, 8192, 16384, 32768, 65536,
 ];
 
-const MATRIX_DIAG_16_MERSENNE31: [Mersenne31; 16] = to_mersenne31_array(MATRIX_DIAG_16_MERSENNE31_U32);
+const MATRIX_DIAG_16_MERSENNE31: [Mersenne31; 16] =
+    to_mersenne31_array(MATRIX_DIAG_16_MERSENNE31_U32);
 
 // We should instead be doing some sort of delayed reduction strategy using the shifts.
 // const MATRIX_DIAG_16_MONTY_SHIFTS: [i32; 16] = [-64, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 14, 15, 16, 17];
@@ -35,7 +36,6 @@ const MATRIX_DIAG_16_MERSENNE31: [Mersenne31; 16] = to_mersenne31_array(MATRIX_D
 //     }
 // }
 
-
 #[derive(Debug, Clone, Default)]
 pub struct DiffusionMatrixMersenne31;
 
@@ -48,5 +48,4 @@ impl<AF: AbstractField<F = Mersenne31>> Permutation<[AF; 16]> for DiffusionMatri
 impl<AF: AbstractField<F = Mersenne31>> DiffusionPermutation<AF, 16> for DiffusionMatrixMersenne31 {}
 
 #[cfg(test)]
-mod tests {
-}
+mod tests {}
