@@ -1,5 +1,10 @@
+use std::marker::PhantomData;
+
 use itertools::Itertools;
-use p3_field::{batch_multiplicative_inverse, extension::ComplexExtendable, ExtensionField};
+use p3_field::{
+    batch_multiplicative_inverse, extension::ComplexExtendable, AbstractField, ExtensionField,
+};
+use p3_fri::FriFolder;
 use p3_matrix::MatrixRows;
 use p3_util::{log2_strict_usize, reverse_bits_len};
 
@@ -22,21 +27,34 @@ pub(crate) fn fold_bivariate<F: ComplexExtendable, EF: ExtensionField<F>>(
     fold(evals, beta, &twiddles)
 }
 
-pub(crate) fn fold_univariate<F: ComplexExtendable, EF: ExtensionField<F>>(
-    evals: impl MatrixRows<EF>,
-    beta: EF,
-) -> Vec<EF> {
-    assert_eq!(evals.width(), 2);
-    let domain = CircleDomain::standard(log2_strict_usize(evals.height()) + 2);
-    let mut twiddles = batch_multiplicative_inverse(
-        &domain
-            .points()
-            .take(evals.height())
-            .map(|p| p.real())
-            .collect_vec(),
-    );
-    twiddles = circle_bitrev_permute(&twiddles);
-    fold(evals, beta, &twiddles)
+pub(crate) struct CircleFriFolder<F>(PhantomData<F>);
+
+impl<F: ComplexExtendable, EF: ExtensionField<F>> FriFolder<EF> for CircleFriFolder<F> {
+    fn fold_matrix<M: MatrixRows<EF>>(m: M, beta: EF) -> Vec<EF> {
+        assert_eq!(m.width(), 2);
+        let domain = CircleDomain::standard(log2_strict_usize(m.height()) + 2);
+        let mut twiddles = batch_multiplicative_inverse(
+            &domain
+                .points()
+                .take(m.height())
+                .map(|p| p.real())
+                .collect_vec(),
+        );
+        twiddles = circle_bitrev_permute(&twiddles);
+        fold(m, beta, &twiddles)
+    }
+    fn fold_row(index: usize, log_height: usize, evals: &[EF], beta: EF) -> EF {
+        assert_eq!(evals.len(), 2);
+
+        let shift = F::circle_two_adic_generator(log_height + 3);
+        let g = F::circle_two_adic_generator(log_height + 2);
+        let orig_idx = circle_bitrev_idx(index, log_height);
+        let t = (shift * g.exp_u64(orig_idx as u64)).real().inverse();
+
+        let sum = evals[0] + evals[1];
+        let diff = (evals[0] - evals[1]) * t;
+        (sum + beta * diff).halve()
+    }
 }
 
 fn fold<F: ComplexExtendable, EF: ExtensionField<F>>(
@@ -79,8 +97,10 @@ pub(crate) fn circle_bitrev_permute<T: Clone>(xs: &[T]) -> Vec<T> {
 
 #[cfg(test)]
 mod tests {
-    use p3_field::{extension::BinomialExtensionField, AbstractExtensionField};
-    use p3_matrix::dense::RowMajorMatrix;
+    use p3_field::{
+        extension::BinomialExtensionField, AbstractExtensionField, AbstractField, Field,
+    };
+    use p3_matrix::{dense::RowMajorMatrix, Matrix, MatrixGet, MatrixRowSlices};
     use p3_mersenne_31::Mersenne31;
     use rand::{thread_rng, Rng};
 
@@ -125,7 +145,7 @@ mod tests {
 
         evals = fold_bivariate::<F, _>(RowMajorMatrix::new(evals, 2), rng.gen());
         for _ in log_blowup..(log_n + log_blowup - 1) {
-            evals = fold_univariate::<F, _>(RowMajorMatrix::new(evals, 2), rng.gen());
+            evals = CircleFriFolder::<F>::fold_matrix(RowMajorMatrix::new(evals, 2), rng.gen());
         }
         assert_eq!(evals.len(), 1 << log_blowup);
         assert_eq!(
@@ -138,5 +158,53 @@ mod tests {
     fn test_folding() {
         do_test_folding(4, 1);
         do_test_folding(5, 2);
+    }
+
+    #[test]
+    fn test_fold_pair() {
+        let mut rng = thread_rng();
+        type F = Mersenne31;
+        // type EF = BinomialExtensionField<F, 3>;
+        type EF = F;
+        type Folder = CircleFriFolder<F>;
+
+        let log_n = 4;
+        let n = 1 << log_n;
+
+        let evals = RowMajorMatrix::<EF>::rand(&mut rng, n >> 1, 2);
+        let beta: EF = rng.gen();
+        let folded = Folder::fold_matrix(evals.clone(), beta);
+
+        /*
+        let domain = CircleDomain::<F>::standard(log2_strict_usize(evals.height()) + 2);
+        let mut twiddles = batch_multiplicative_inverse(
+            &domain
+                .points()
+                .take(evals.height())
+                .map(|p| p.real())
+                .collect_vec(),
+        );
+        twiddles = circle_bitrev_permute(&twiddles);
+
+        for i in 0..(n >> 1) {
+            let shift = F::circle_two_adic_generator(log_n + 2);
+            let g = F::circle_two_adic_generator(log_n + 1);
+            let orig_idx = circle_bitrev_idx(i, log_n - 1);
+            let computed_twiddle = (shift * g.exp_u64(orig_idx as u64)).real().inverse();
+            println!("{i:>2}: {} {}", twiddles[i], computed_twiddle);
+        }
+        */
+
+        for i in 0..(n >> 1) {
+            println!(
+                "{i:>2}: [{}, {}], {}, {}",
+                evals.get(i, 0),
+                evals.get(i, 1),
+                folded[i],
+                Folder::fold_row(i, log_n, evals.row_slice(i), beta),
+            );
+        }
+
+        // dbg!(folded);
     }
 }

@@ -18,7 +18,7 @@ pub trait FriFolder<F> {
     /// Fold along each row, returning a single column.
     /// Right now this will always be 2 columns wide,
     /// but we may support higher folding arity in the future.
-    fn fold<M: MatrixRows<F>>(m: M, beta: F) -> Vec<F>;
+    fn fold_matrix<M: MatrixRows<F>>(m: M, beta: F) -> Vec<F>;
 
-    fn interpolate(index: usize, log_height: usize, evals: &[F], beta: F) -> F;
+    fn fold_row(index: usize, log_height: usize, evals: &[F], beta: F) -> F;
 }

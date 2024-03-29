@@ -112,7 +112,7 @@ where
         let beta: F = challenger.sample();
         // we passed ownership of `current` to the MMCS, so get a reference to it
         let leaves = config.mmcs.get_matrices(&prover_data).pop().unwrap();
-        current = Folder::fold(leaves, beta);
+        current = Folder::fold_matrix(leaves, beta);
 
         commits.push(commit);
         data.push(prover_data);

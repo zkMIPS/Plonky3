@@ -6,7 +6,7 @@ use p3_challenger::{CanObserve, CanSample, GrindingChallenger};
 use p3_commit::{DirectMmcs, OpenedValues, Pcs};
 use p3_field::extension::{Complex, ComplexExtendable, HasFrobenius};
 use p3_field::{batch_multiplicative_inverse, AbstractField, ExtensionField, Field};
-use p3_fri::{FriConfig, PowersReducer};
+use p3_fri::{FriConfig, FriProof, PowersReducer};
 use p3_matrix::dense::{RowMajorMatrix, RowMajorMatrixView};
 use p3_matrix::routines::columnwise_dot_product;
 use p3_matrix::{Matrix, MatrixRows};
@@ -17,8 +17,7 @@ use tracing::{info_span, instrument};
 use crate::cfft::Cfft;
 use crate::deep_quotient::{extract_lambda, is_low_degree};
 use crate::domain::CircleDomain;
-use crate::folding::{circle_bitrev_permute, fold_bivariate};
-use crate::fri;
+use crate::folding::{circle_bitrev_permute, fold_bivariate, CircleFriFolder};
 use crate::util::{univariate_to_point, v_n};
 
 pub struct CirclePcs<Val, InputMmcs, FriMmcs> {
@@ -45,7 +44,11 @@ where
     type Domain = CircleDomain<Val>;
     type Commitment = InputMmcs::Commitment;
     type ProverData = ProverData<Val, InputMmcs::ProverData>;
-    type Proof = ();
+    // TEMP: pass through reduced query openings
+    type Proof = (
+        FriProof<Challenge, FriMmcs, Challenger::Witness>,
+        Vec<[Challenge; 32]>,
+    );
     type Error = ();
 
     fn natural_domain_for_degree(&self, degree: usize) -> Self::Domain {
@@ -148,7 +151,6 @@ where
                                 let (lhs_nums, lhs_denoms): (Vec<_>, Vec<_>) = domain
                                     .points()
                                     .map(|x| {
-                                        //
                                         let x_rotate_zeta: Complex<Challenge> =
                                             x.rotate(zeta_point.conjugate());
 
@@ -218,23 +220,39 @@ where
                 CircleDomain::standard(i + 1),
                 &mut ro,
             );
-            assert!(is_low_degree(
+            debug_assert!(is_low_degree(
                 &RowMajorMatrix::new_col(ro.clone()).flatten_to_base()
             ));
             let ro_permuted = RowMajorMatrix::new(circle_bitrev_permute(&ro), 2);
             Some(fold_bivariate(ro_permuted, bivariate_beta))
         });
 
-        let fri_proof = fri::prove(&self.fri_config, &fri_input, challenger);
+        let (fri_proof, query_indices) = p3_fri::prover::prove::<CircleFriFolder<Val>, _, _, _>(
+            &self.fri_config,
+            &fri_input,
+            challenger,
+        );
 
-        // todo: fri prove
-        (values, ())
+        // TEMP: pass through reduced openings
+        let reduced_query_openings: Vec<[Challenge; 32]> = query_indices
+            .into_iter()
+            .map(|index| {
+                core::array::from_fn(|i| {
+                    fri_input[i]
+                        .as_ref()
+                        .map(|v| v[index])
+                        .unwrap_or(Challenge::zero())
+                })
+            })
+            .collect();
+
+        (values, (fri_proof, reduced_query_openings))
     }
 
     fn verify(
         &self,
         // For each round:
-        _rounds: Vec<(
+        rounds: Vec<(
             Self::Commitment,
             // for each matrix:
             Vec<(
@@ -249,10 +267,29 @@ where
                 )>,
             )>,
         )>,
-        _proof: &Self::Proof,
-        _challenger: &mut Challenger,
+        proof: &Self::Proof,
+        challenger: &mut Challenger,
     ) -> Result<(), Self::Error> {
-        // todo: fri verify
+        let (fri_proof, reduced_openings) = proof;
+        // Batch combination challenge
+        let mu: Challenge = challenger.sample();
+        let bivariate_beta: Challenge = challenger.sample();
+
+        let fri_challenges = p3_fri::verifier::verify_shape_and_sample_challenges(
+            &self.fri_config,
+            &fri_proof,
+            challenger,
+        )
+        .unwrap();
+
+        p3_fri::verifier::verify_challenges::<CircleFriFolder<Val>, _, _, _>(
+            &self.fri_config,
+            &fri_proof,
+            &fri_challenges,
+            &reduced_openings,
+        )
+        .unwrap();
+
         Ok(())
     }
 }

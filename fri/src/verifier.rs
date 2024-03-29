@@ -142,10 +142,11 @@ where
             )
             .map_err(FriError::CommitPhaseMmcsError)?;
 
+        index = index_pair;
+
         // If verification is extremely performance-critical (such as in recursive setting),
         // this can be changed to a stateful API to save intermediate computations.
-        folded_eval = Folder::interpolate(index, log_folded_height + 1, &evals, beta);
-        index = index_pair;
+        folded_eval = Folder::fold_row(index, log_folded_height, &evals, beta);
     }
 
     debug_assert!(index < config.blowup(), "index was {}", index);

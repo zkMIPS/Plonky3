@@ -73,7 +73,7 @@ pub struct BatchOpening<Val: Field, InputMmcs: Mmcs<Val>> {
 
 pub struct TwoAdicFriFolder;
 impl<F: TwoAdicField> FriFolder<F> for TwoAdicFriFolder {
-    fn fold<M: MatrixRows<F>>(m: M, beta: F) -> Vec<F> {
+    fn fold_matrix<M: MatrixRows<F>>(m: M, beta: F) -> Vec<F> {
         // We use the fact that
         //     p_e(x^2) = (p(x) + p(-x)) / 2
         //     p_o(x^2) = (p(x) - p(-x)) / (2 x)
@@ -105,14 +105,17 @@ impl<F: TwoAdicField> FriFolder<F> for TwoAdicFriFolder {
             })
             .collect()
     }
-    fn interpolate(index: usize, log_height: usize, evals: &[F], beta: F) -> F {
-        assert_eq!(evals.len(), 2);
+    fn fold_row(index: usize, log_height: usize, evals: &[F], beta: F) -> F {
+        let log_arity = log2_strict_usize(evals.len());
         // If performance critical, make this API stateful to avoid this
-        let x =
-            F::two_adic_generator(log_height).exp_u64(reverse_bits_len(index, log_height) as u64);
-        let mut xs = [x; 2];
-        // (index & 1) ^ 1 gets the sibling index in evals, 0 or 1
-        xs[(index & 1) ^ 1] *= F::two_adic_generator(1);
+        let subgroup_start = F::two_adic_generator(log_height + log_arity)
+            .exp_u64(reverse_bits_len(index, log_height) as u64);
+        let mut xs = F::two_adic_generator(log_arity)
+            .shifted_powers(subgroup_start)
+            .take(evals.len())
+            .collect_vec();
+        reverse_slice_index_bits(&mut xs);
+        assert_eq!(log_arity, 1, "can only interpolate two points for now");
         // interpolate and evaluate at beta
         evals[0] + (beta - xs[0]) * (evals[1] - evals[0]) / (xs[1] - xs[0])
     }
@@ -639,7 +642,7 @@ mod tests {
         // fold_even_odd takes and returns in bitrev order.
         let mut folded = evals;
         reverse_slice_index_bits(&mut folded);
-        folded = TwoAdicFriFolder::fold(RowMajorMatrix::new(folded, 2), beta);
+        folded = TwoAdicFriFolder::fold_matrix(RowMajorMatrix::new(folded, 2), beta);
         reverse_slice_index_bits(&mut folded);
 
         assert_eq!(expected, folded);
