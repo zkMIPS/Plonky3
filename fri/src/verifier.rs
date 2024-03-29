@@ -6,7 +6,7 @@ use p3_challenger::{CanObserve, CanSample, GrindingChallenger};
 use p3_commit::Mmcs;
 use p3_field::{Field, TwoAdicField};
 use p3_matrix::Dimensions;
-use p3_util::reverse_bits_len;
+
 
 use crate::{FriConfig, FriFolder, FriProof, QueryProof};
 
@@ -118,7 +118,7 @@ where
         .exp_u64(reverse_bits_len(index, log_max_height) as u64);
         */
 
-    for (log_folded_height, commit, step, &beta) in izip!(
+    for (log_folded_height, commit, step, &_beta) in izip!(
         (0..log_max_height).rev(),
         commit_phase_commits,
         &proof.commit_phase_openings,

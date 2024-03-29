@@ -105,7 +105,7 @@ impl<F: TwoAdicField> FriFolder<F> for TwoAdicFriFolder {
             })
             .collect()
     }
-    fn interpolate(index: usize, evals: &[F]) -> F {
+    fn interpolate(_index: usize, _evals: &[F]) -> F {
         todo!()
     }
 }
