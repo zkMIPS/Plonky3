@@ -4,9 +4,8 @@ use alloc::vec::Vec;
 use itertools::izip;
 use p3_challenger::{CanObserve, CanSample, GrindingChallenger};
 use p3_commit::Mmcs;
-use p3_field::{Field, TwoAdicField};
+use p3_field::Field;
 use p3_matrix::Dimensions;
-
 
 use crate::{FriConfig, FriFolder, FriProof, QueryProof};
 
@@ -71,7 +70,7 @@ pub fn verify_challenges<Folder, F, M, Witness>(
     reduced_openings: &[[F; 32]],
 ) -> Result<(), FriError<M::Error>>
 where
-    F: TwoAdicField,
+    F: Field,
     M: Mmcs<F>,
     Folder: FriFolder<F>,
 {
@@ -108,17 +107,13 @@ fn verify_query<Folder, F, M>(
     log_max_height: usize,
 ) -> Result<F, FriError<M::Error>>
 where
-    F: TwoAdicField,
+    F: Field,
     M: Mmcs<F>,
     Folder: FriFolder<F>,
 {
     let mut folded_eval = F::zero();
-    /*
-    let mut x = F::two_adic_generator(log_max_height)
-        .exp_u64(reverse_bits_len(index, log_max_height) as u64);
-        */
 
-    for (log_folded_height, commit, step, &_beta) in izip!(
+    for (log_folded_height, commit, step, &beta) in izip!(
         (0..log_max_height).rev(),
         commit_phase_commits,
         &proof.commit_phase_openings,
@@ -147,22 +142,12 @@ where
             )
             .map_err(FriError::CommitPhaseMmcsError)?;
 
-        /*
-        let mut xs = [x; 2];
-        xs[index_sibling % 2] *= F::two_adic_generator(1);
-        // interpolate and evaluate at beta
-        folded_eval = evals[0] + (beta - xs[0]) * (evals[1] - evals[0]) / (xs[1] - xs[0]);
-
-        x = x.square();
-        */
-
-        folded_eval = Folder::interpolate(index, &evals);
-
+        // If verification is extremely performance-critical (such as in recursive setting),
+        // this can be changed to a stateful API to save intermediate computations.
+        folded_eval = Folder::interpolate(index, log_folded_height + 1, &evals, beta);
         index = index_pair;
     }
 
     debug_assert!(index < config.blowup(), "index was {}", index);
-    // debug_assert_eq!(x.exp_power_of_2(config.log_blowup), F::one());
-
     Ok(folded_eval)
 }

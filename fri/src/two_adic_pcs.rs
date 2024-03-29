@@ -105,8 +105,16 @@ impl<F: TwoAdicField> FriFolder<F> for TwoAdicFriFolder {
             })
             .collect()
     }
-    fn interpolate(_index: usize, _evals: &[F]) -> F {
-        todo!()
+    fn interpolate(index: usize, log_height: usize, evals: &[F], beta: F) -> F {
+        assert_eq!(evals.len(), 2);
+        // If performance critical, make this API stateful to avoid this
+        let x =
+            F::two_adic_generator(log_height).exp_u64(reverse_bits_len(index, log_height) as u64);
+        let mut xs = [x; 2];
+        // (index & 1) ^ 1 gets the sibling index in evals, 0 or 1
+        xs[(index & 1) ^ 1] *= F::two_adic_generator(1);
+        // interpolate and evaluate at beta
+        evals[0] + (beta - xs[0]) * (evals[1] - evals[0]) / (xs[1] - xs[0])
     }
 }
 

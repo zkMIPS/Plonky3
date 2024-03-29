@@ -20,5 +20,5 @@ pub trait FriFolder<F> {
     /// but we may support higher folding arity in the future.
     fn fold<M: MatrixRows<F>>(m: M, beta: F) -> Vec<F>;
 
-    fn interpolate(index: usize, evals: &[F]) -> F;
+    fn interpolate(index: usize, log_height: usize, evals: &[F], beta: F) -> F;
 }
