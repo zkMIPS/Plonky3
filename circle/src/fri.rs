@@ -38,7 +38,6 @@ where
     Challenger: CanObserve<M::Commitment> + CanSample<EF>,
 {
     let mut current = input[log_max_height].as_ref().unwrap().clone();
-
     let mut commits = vec![];
     let mut data = vec![];
 
@@ -51,6 +50,7 @@ where
         }
     }
 
+    assert_eq!(current.len(), config.blowup());
     let final_poly = current[0];
     for x in current {
         assert_eq!(x, final_poly);
