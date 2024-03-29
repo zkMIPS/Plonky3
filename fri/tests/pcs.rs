@@ -7,7 +7,7 @@ use p3_field::Field;
 use p3_fri::{FriConfig, TwoAdicFriPcs};
 use p3_matrix::dense::RowMajorMatrix;
 use p3_merkle_tree::FieldMerkleTreeMmcs;
-use p3_poseidon2::Poseidon2;
+use p3_poseidon2::{Poseidon2, HLMDSMat4, Poseidon2ExternalMatrix};
 use p3_symmetric::{PaddingFreeSponge, TruncatedPermutation};
 use rand::thread_rng;
 
@@ -16,8 +16,9 @@ fn make_test_fri_pcs(log_degrees: &[usize]) {
     type Val = BabyBear;
     type Challenge = BinomialExtensionField<Val, 4>;
 
-    type Perm = Poseidon2<Val, DiffusionMatrixBabybear, 16, 7>;
-    let perm = Perm::new_from_rng(8, 22, DiffusionMatrixBabybear, &mut rng);
+    let external_linear_layer: Poseidon2ExternalMatrix<_> = Poseidon2ExternalMatrix::new(HLMDSMat4);
+    type Perm = Poseidon2<Val, Poseidon2ExternalMatrix<HLMDSMat4>, DiffusionMatrixBabybear, 16, 7>;
+    let perm = Perm::new_from_rng(8, external_linear_layer, 22, DiffusionMatrixBabybear, &mut thread_rng());
 
     type MyHash = PaddingFreeSponge<Perm, 16, 8, 8>;
     let hash = MyHash::new(perm.clone());

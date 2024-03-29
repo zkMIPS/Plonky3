@@ -15,7 +15,7 @@ mod round_numbers;
 use alloc::vec::Vec;
 
 pub use diffusion::{matmul_internal, DiffusionPermutation};
-pub use matrix::{HLMDSMat4, MDSMat4, MdsLightPermutation, Poseidon2MEMatrix};
+pub use matrix::{HLMDSMat4, MDSMat4, MdsLightPermutation, Poseidon2ExternalMatrix};
 use p3_field::{AbstractField, PrimeField};
 use p3_symmetric::{CryptographicPermutation, Permutation};
 use rand::distributions::{Distribution, Standard};

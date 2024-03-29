@@ -90,7 +90,7 @@ mod tests {
     use core::array;
     
     use p3_field::AbstractField;
-    use p3_poseidon2::{HLMDSMat4, Poseidon2, Poseidon2MEMatrix, HL_BABYBEAR_16_EXTERNAL_ROUND_CONSTANTS, HL_BABYBEAR_16_INTERNAL_ROUND_CONSTANTS};
+    use p3_poseidon2::{HLMDSMat4, Poseidon2, Poseidon2ExternalMatrix, HL_BABYBEAR_16_EXTERNAL_ROUND_CONSTANTS, HL_BABYBEAR_16_INTERNAL_ROUND_CONSTANTS};
 
     use super::*;
 
@@ -113,12 +113,12 @@ mod tests {
         const ROUNDS_F: usize = 8;
         const ROUNDS_P: usize = 13;
 
-        let external_linear_layer: Poseidon2MEMatrix<16, _> = Poseidon2MEMatrix::new(HLMDSMat4);
+        let external_linear_layer: Poseidon2ExternalMatrix<_> = Poseidon2ExternalMatrix::new(HLMDSMat4);
 
         // Our Poseidon2 implementation.
         let poseidon2: Poseidon2<
             BabyBear,
-            Poseidon2MEMatrix<16, _>,
+            Poseidon2ExternalMatrix<_>,
             DiffusionMatrixBabybear,
             WIDTH,
             D,

@@ -4,7 +4,7 @@
 
 use p3_field::PrimeField32;
 // These round numbers will presumably work for all 31-bit prime fields but we have only checked the following primes.
-const TESTED_31_BIT_PRIMES: [u32; 3] = [2 ^ 31 - 1, 2 ^ 31 - 2 ^ 27 + 1, 2 ^ 31 - 2 ^ 24 + 1];
+const TESTED_31_BIT_PRIMES: [u32; 3] = [(1 << 31) - 1, (1 << 31) - (1 << 27) + 1, (1 << 31) - (1 << 24) + 1];
 
 /// Given a field, a width and an alpha return the number of full and partial rounds needed to achieve 128 bit security.
 pub fn poseidon_round_numbers<F: PrimeField32>(width: u64, alpha: u64) -> (u32, u32) {

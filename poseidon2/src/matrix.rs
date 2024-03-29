@@ -88,7 +88,7 @@ impl<AF: AbstractField> Permutation<[AF; 4]> for MDSMat4 {
 impl<AF: AbstractField> MdsPermutation<AF, 4> for MDSMat4 {}
 
 #[derive(Copy, Clone, Default)]
-pub struct Poseidon2MEMatrix<const WIDTH: usize, MdsPerm4> {
+pub struct Poseidon2ExternalMatrix<MdsPerm4> {
     // A 4x4 MDS Matrix
     mat4: MdsPerm4,
 }
@@ -109,14 +109,14 @@ pub struct Poseidon2MEMatrix<const WIDTH: usize, MdsPerm4> {
 //
 // }
 
-impl<const WIDTH: usize, MdsPerm4> Poseidon2MEMatrix<WIDTH, MdsPerm4> {
+impl<MdsPerm4> Poseidon2ExternalMatrix<MdsPerm4> {
     pub fn new(mat4: MdsPerm4) -> Self {
         Self { mat4 }
     }
 }
 
 impl<AF, const WIDTH: usize, MdsPerm4> Permutation<[AF; WIDTH]>
-    for Poseidon2MEMatrix<WIDTH, MdsPerm4>
+    for Poseidon2ExternalMatrix<MdsPerm4>
 where
     AF: AbstractField,
     AF::F: PrimeField,
@@ -177,7 +177,7 @@ where
 }
 
 impl<AF, const WIDTH: usize, MdsPerm4> MdsLightPermutation<AF, WIDTH>
-    for Poseidon2MEMatrix<WIDTH, MdsPerm4>
+    for Poseidon2ExternalMatrix<MdsPerm4>
 where
     AF: AbstractField,
     AF::F: PrimeField,
