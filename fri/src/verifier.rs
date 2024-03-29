@@ -8,7 +8,7 @@ use p3_field::{Field, TwoAdicField};
 use p3_matrix::Dimensions;
 use p3_util::reverse_bits_len;
 
-use crate::{FriConfig, FriProof, QueryProof};
+use crate::{FriConfig, FriFolder, FriProof, QueryProof};
 
 #[derive(Debug)]
 pub enum FriError<CommitMmcsErr> {
@@ -64,7 +64,7 @@ where
     })
 }
 
-pub fn verify_challenges<F, M, Witness>(
+pub fn verify_challenges<Folder, F, M, Witness>(
     config: &FriConfig<M>,
     proof: &FriProof<F, M, Witness>,
     challenges: &FriChallenges<F>,
@@ -73,6 +73,7 @@ pub fn verify_challenges<F, M, Witness>(
 where
     F: TwoAdicField,
     M: Mmcs<F>,
+    Folder: FriFolder<F>,
 {
     let log_max_height = proof.commit_phase_commits.len() + config.log_blowup;
     for (&index, query_proof, ro) in izip!(
@@ -80,7 +81,7 @@ where
         &proof.query_proofs,
         reduced_openings
     ) {
-        let folded_eval = verify_query(
+        let folded_eval = verify_query::<Folder, _, _>(
             config,
             &proof.commit_phase_commits,
             index,
@@ -89,7 +90,6 @@ where
             ro,
             log_max_height,
         )?;
-
         if folded_eval != proof.final_poly {
             return Err(FriError::FinalPolyMismatch);
         }
@@ -98,7 +98,7 @@ where
     Ok(())
 }
 
-fn verify_query<F, M>(
+fn verify_query<Folder, F, M>(
     config: &FriConfig<M>,
     commit_phase_commits: &[M::Commitment],
     mut index: usize,
@@ -110,10 +110,13 @@ fn verify_query<F, M>(
 where
     F: TwoAdicField,
     M: Mmcs<F>,
+    Folder: FriFolder<F>,
 {
     let mut folded_eval = F::zero();
+    /*
     let mut x = F::two_adic_generator(log_max_height)
         .exp_u64(reverse_bits_len(index, log_max_height) as u64);
+        */
 
     for (log_folded_height, commit, step, &beta) in izip!(
         (0..log_max_height).rev(),
@@ -144,17 +147,22 @@ where
             )
             .map_err(FriError::CommitPhaseMmcsError)?;
 
+        /*
         let mut xs = [x; 2];
         xs[index_sibling % 2] *= F::two_adic_generator(1);
         // interpolate and evaluate at beta
         folded_eval = evals[0] + (beta - xs[0]) * (evals[1] - evals[0]) / (xs[1] - xs[0]);
 
-        index = index_pair;
         x = x.square();
+        */
+
+        folded_eval = Folder::interpolate(index, &evals);
+
+        index = index_pair;
     }
 
     debug_assert!(index < config.blowup(), "index was {}", index);
-    debug_assert_eq!(x.exp_power_of_2(config.log_blowup), F::one());
+    // debug_assert_eq!(x.exp_power_of_2(config.log_blowup), F::one());
 
     Ok(folded_eval)
 }

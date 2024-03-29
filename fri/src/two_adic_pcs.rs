@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{info_span, instrument};
 
 use crate::verifier::{self, FriError};
-use crate::{prover, FriConfig, FriProof};
+use crate::{prover, FriConfig, FriFolder, FriProof};
 
 pub struct TwoAdicFriPcs<Val, Dft, InputMmcs, FriMmcs> {
     // degree bound
@@ -69,6 +69,45 @@ pub struct TwoAdicFriPcsProof<
 pub struct BatchOpening<Val: Field, InputMmcs: Mmcs<Val>> {
     pub(crate) opened_values: Vec<Vec<Val>>,
     pub(crate) opening_proof: <InputMmcs as Mmcs<Val>>::Proof,
+}
+
+pub struct TwoAdicFriFolder;
+impl<F: TwoAdicField> FriFolder<F> for TwoAdicFriFolder {
+    fn fold<M: MatrixRows<F>>(m: M, beta: F) -> Vec<F> {
+        // We use the fact that
+        //     p_e(x^2) = (p(x) + p(-x)) / 2
+        //     p_o(x^2) = (p(x) - p(-x)) / (2 x)
+        // that is,
+        //     p_e(g^(2i)) = (p(g^i) + p(g^(n/2 + i))) / 2
+        //     p_o(g^(2i)) = (p(g^i) - p(g^(n/2 + i))) / (2 g^i)
+        // so
+        //     result(g^(2i)) = p_e(g^(2i)) + beta p_o(g^(2i))
+        //                    = (1/2 + beta/2 g_inv^i) p(g^i)
+        //                    + (1/2 - beta/2 g_inv^i) p(g^(n/2 + i))
+        let g_inv = F::two_adic_generator(log2_strict_usize(m.height()) + 1).inverse();
+        let one_half = F::two().inverse();
+        let half_beta = beta * one_half;
+
+        // TODO: vectorize this (after we have packed extension fields)
+
+        // beta/2 times successive powers of g_inv
+        let mut powers = g_inv
+            .shifted_powers(half_beta)
+            .take(m.height())
+            .collect_vec();
+        reverse_slice_index_bits(&mut powers);
+
+        m.rows()
+            .zip(powers)
+            .map(|(row, power)| {
+                let (lo, hi) = row.into_iter().next_tuple().unwrap();
+                (one_half + power) * lo + (one_half - power) * hi
+            })
+            .collect()
+    }
+    fn interpolate(index: usize, evals: &[F]) -> F {
+        todo!()
+    }
 }
 
 impl<Val, Dft, InputMmcs, FriMmcs, Challenge, Challenger> Pcs<Challenge, Challenger>
@@ -264,7 +303,8 @@ where
             }
         }
 
-        let (fri_proof, query_indices) = prover::prove(&self.fri, &reduced_openings, challenger);
+        let (fri_proof, query_indices) =
+            prover::prove::<TwoAdicFriFolder, _, _, _>(&self.fri, &reduced_openings, challenger);
 
         let query_openings = query_indices
             .into_iter()
@@ -370,7 +410,7 @@ where
             .collect::<Result<Vec<_>, InputMmcs::Error>>()
             .map_err(VerificationError::InputMmcsError)?;
 
-        verifier::verify_challenges(
+        verifier::verify_challenges::<TwoAdicFriFolder, _, _, _>(
             &self.fri,
             &proof.fri_proof,
             &fri_challenges,
@@ -500,6 +540,7 @@ fn transpose_vec<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
 mod tests {
 
     use p3_baby_bear::BabyBear;
+    use p3_dft::Radix2Dit;
     use p3_field::extension::BinomialExtensionField;
     use p3_field::AbstractExtensionField;
     use rand::{thread_rng, Rng};
@@ -561,5 +602,38 @@ mod tests {
             println!("sample {i}: slow: {dt_slow:?} fast: {dt_fast:?}");
         }
         */
+    }
+
+    #[test]
+    fn test_two_adic_fri_folder() {
+        type F = BabyBear;
+
+        let mut rng = thread_rng();
+
+        let log_n = 10;
+        let n = 1 << log_n;
+        let coeffs = (0..n).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
+
+        let dft = Radix2Dit::default();
+        let evals = dft.dft(coeffs.clone());
+
+        let even_coeffs = coeffs.iter().cloned().step_by(2).collect_vec();
+        let even_evals = dft.dft(even_coeffs);
+
+        let odd_coeffs = coeffs.iter().cloned().skip(1).step_by(2).collect_vec();
+        let odd_evals = dft.dft(odd_coeffs);
+
+        let beta = rng.gen::<F>();
+        let expected = izip!(even_evals, odd_evals)
+            .map(|(even, odd)| even + beta * odd)
+            .collect::<Vec<_>>();
+
+        // fold_even_odd takes and returns in bitrev order.
+        let mut folded = evals;
+        reverse_slice_index_bits(&mut folded);
+        folded = TwoAdicFriFolder::fold(RowMajorMatrix::new(folded, 2), beta);
+        reverse_slice_index_bits(&mut folded);
+
+        assert_eq!(expected, folded);
     }
 }

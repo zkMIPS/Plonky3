@@ -4,27 +4,28 @@ use alloc::vec::Vec;
 use itertools::Itertools;
 use p3_challenger::{CanObserve, CanSample, GrindingChallenger};
 use p3_commit::{DirectMmcs, Mmcs};
-use p3_field::{Field, TwoAdicField};
+use p3_field::Field;
 use p3_matrix::dense::RowMajorMatrix;
 use tracing::{info_span, instrument};
 
-use crate::fold_even_odd::fold_even_odd;
-use crate::{CommitPhaseProofStep, FriConfig, FriProof, QueryProof};
+use crate::{CommitPhaseProofStep, FriConfig, FriFolder, FriProof, QueryProof};
 
 #[instrument(name = "FRI prover", skip_all)]
-pub fn prove<F, M, Challenger>(
+pub fn prove<Folder, F, M, Challenger>(
     config: &FriConfig<M>,
     input: &[Option<Vec<F>>; 32],
     challenger: &mut Challenger,
 ) -> (FriProof<F, M, Challenger::Witness>, Vec<usize>)
 where
-    F: TwoAdicField,
+    F: Field,
     M: DirectMmcs<F>,
     Challenger: GrindingChallenger + CanObserve<M::Commitment> + CanSample<F>,
+    Folder: FriFolder<F>,
 {
     let log_max_height = input.iter().rposition(Option::is_some).unwrap();
 
-    let commit_phase_result = commit_phase(config, input, log_max_height, challenger);
+    let commit_phase_result =
+        commit_phase::<Folder, _, _, _>(config, input, log_max_height, challenger);
 
     let pow_witness = challenger.grind(config.proof_of_work_bits);
 
@@ -86,16 +87,17 @@ where
 }
 
 #[instrument(name = "commit phase", skip_all)]
-fn commit_phase<F, M, Challenger>(
+fn commit_phase<Folder, F, M, Challenger>(
     config: &FriConfig<M>,
     input: &[Option<Vec<F>>; 32],
     log_max_height: usize,
     challenger: &mut Challenger,
 ) -> CommitPhaseResult<F, M>
 where
-    F: TwoAdicField,
+    F: Field,
     M: DirectMmcs<F>,
     Challenger: CanObserve<M::Commitment> + CanSample<F>,
+    Folder: FriFolder<F>,
 {
     let mut current = input[log_max_height].as_ref().unwrap().clone();
 
@@ -103,14 +105,17 @@ where
     let mut data = vec![];
 
     for log_folded_height in (config.log_blowup..log_max_height).rev() {
-        let leaves = RowMajorMatrix::new(current.clone(), 2);
+        let leaves = RowMajorMatrix::new(current, 2);
         let (commit, prover_data) = config.mmcs.commit_matrix(leaves);
         challenger.observe(commit.clone());
-        commits.push(commit);
-        data.push(prover_data);
 
         let beta: F = challenger.sample();
-        current = fold_even_odd(current, beta);
+        // we passed ownership of `current` to the MMCS, so get a reference to it
+        let leaves = config.mmcs.get_matrices(&prover_data).pop().unwrap();
+        current = Folder::fold(leaves, beta);
+
+        commits.push(commit);
+        data.push(prover_data);
 
         if let Some(v) = &input[log_folded_height] {
             current.iter_mut().zip_eq(v).for_each(|(c, v)| *c += *v);
