@@ -17,7 +17,7 @@ use tracing::{info_span, instrument};
 use crate::cfft::Cfft;
 use crate::deep_quotient::{extract_lambda, is_low_degree};
 use crate::domain::CircleDomain;
-use crate::folding::fold_bivariate;
+use crate::folding::{circle_bitrev_permute, fold_bivariate};
 use crate::fri;
 use crate::util::{univariate_to_point, v_n};
 
@@ -221,7 +221,8 @@ where
             assert!(is_low_degree(
                 &RowMajorMatrix::new_col(ro.clone()).flatten_to_base()
             ));
-            Some(fold_bivariate(ro, bivariate_beta))
+            let ro_permuted = RowMajorMatrix::new(circle_bitrev_permute(&ro), 2);
+            Some(fold_bivariate(ro_permuted, bivariate_beta))
         });
 
         let fri_proof = fri::prove(&self.fri_config, &fri_input, challenger);

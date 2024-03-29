@@ -1,11 +1,12 @@
 use itertools::Itertools;
 use p3_challenger::{CanObserve, CanSample, GrindingChallenger};
 use p3_commit::{DirectMmcs, Mmcs};
-use p3_field::{extension::ComplexExtendable, ExtensionField, Field};
+use p3_field::{extension::ComplexExtendable, ExtensionField};
 use p3_fri::FriConfig;
+use p3_matrix::dense::RowMajorMatrix;
 use tracing::instrument;
 
-use crate::{folding::fold_univariate, twiddles::TwiddleCache};
+use crate::folding::fold_univariate;
 
 #[instrument(name = "FRI prover", skip_all)]
 pub(crate) fn prove<F, EF, M, Challenger>(
@@ -42,12 +43,20 @@ where
     let mut data = vec![];
 
     for log_folded_height in (config.log_blowup..log_max_height).rev() {
-        // commit to current
+        let (commit, prover_data) = config.mmcs.commit_matrix(RowMajorMatrix::new(current, 2));
+        challenger.observe(commit.clone());
+
         let beta: EF = challenger.sample();
-        current = fold_univariate(current, beta);
+        // we passed ownership of `current` to the MMCS, so get a reference to it
+        let committed_leaves = config.mmcs.get_matrices(&prover_data).pop().unwrap();
+        current = fold_univariate(committed_leaves, beta);
+
         if let Some(v) = &input[log_folded_height] {
             current.iter_mut().zip_eq(v).for_each(|(c, v)| *c += *v);
         }
+
+        commits.push(commit);
+        data.push(prover_data);
     }
 
     assert_eq!(current.len(), config.blowup());
@@ -74,7 +83,7 @@ mod tests {
     use itertools::Itertools;
     use p3_challenger::{HashChallenger, SerializingChallenger32};
     use p3_commit::ExtensionMmcs;
-    use p3_field::{extension::BinomialExtensionField, AbstractExtensionField};
+    use p3_field::{extension::BinomialExtensionField, AbstractExtensionField, Field};
     use p3_keccak::Keccak256Hash;
     use p3_matrix::dense::RowMajorMatrix;
     use p3_merkle_tree::FieldMerkleTreeMmcs;
@@ -82,7 +91,12 @@ mod tests {
     use p3_symmetric::{CompressionFunctionFromHasher, SerializingHasher32};
     use rand::{thread_rng, Rng};
 
-    use crate::{domain::CircleDomain, Cfft};
+    use crate::{
+        domain::CircleDomain,
+        folding::{circle_bitrev_permute, fold_bivariate},
+        twiddles::TwiddleCache,
+        Cfft,
+    };
 
     use super::*;
 
@@ -193,7 +207,11 @@ mod tests {
                 .rows()
                 .map(|r| Challenge::from_base_slice(r))
                 .collect_vec();
-            inputs[log_n + fri_config.log_blowup] = Some(input);
+            let input = fold_bivariate::<Val, _>(
+                RowMajorMatrix::new(circle_bitrev_permute(&input), 2),
+                rng.gen(),
+            );
+            inputs[log_n + fri_config.log_blowup - 1] = Some(input);
         }
 
         let mut challenger = Challenger::from_hasher(vec![], byte_hash);

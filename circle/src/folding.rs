@@ -1,19 +1,20 @@
 use itertools::Itertools;
 use p3_field::{batch_multiplicative_inverse, extension::ComplexExtendable, ExtensionField};
-use p3_matrix::dense::RowMajorMatrix;
+use p3_matrix::MatrixRows;
 use p3_util::{log2_strict_usize, reverse_bits_len};
 
 use crate::domain::CircleDomain;
 
 pub(crate) fn fold_bivariate<F: ComplexExtendable, EF: ExtensionField<F>>(
-    evals: Vec<EF>,
+    evals: impl MatrixRows<EF>,
     beta: EF,
 ) -> Vec<EF> {
-    let domain = CircleDomain::standard(log2_strict_usize(evals.len()));
+    assert_eq!(evals.width(), 2);
+    let domain = CircleDomain::standard(log2_strict_usize(evals.height()) + 1);
     let mut twiddles = batch_multiplicative_inverse(
         &domain
             .points()
-            .take(evals.len() / 2)
+            .take(evals.height())
             .map(|p| p.imag())
             .collect_vec(),
     );
@@ -22,14 +23,15 @@ pub(crate) fn fold_bivariate<F: ComplexExtendable, EF: ExtensionField<F>>(
 }
 
 pub(crate) fn fold_univariate<F: ComplexExtendable, EF: ExtensionField<F>>(
-    evals: Vec<EF>,
+    evals: impl MatrixRows<EF>,
     beta: EF,
 ) -> Vec<EF> {
-    let domain = CircleDomain::standard(log2_strict_usize(evals.len()) + 1);
+    assert_eq!(evals.width(), 2);
+    let domain = CircleDomain::standard(log2_strict_usize(evals.height()) + 2);
     let mut twiddles = batch_multiplicative_inverse(
         &domain
             .points()
-            .take(evals.len() / 2)
+            .take(evals.height())
             .map(|p| p.real())
             .collect_vec(),
     );
@@ -38,15 +40,16 @@ pub(crate) fn fold_univariate<F: ComplexExtendable, EF: ExtensionField<F>>(
 }
 
 fn fold<F: ComplexExtendable, EF: ExtensionField<F>>(
-    evals: Vec<EF>,
+    evals: impl MatrixRows<EF>,
     beta: EF,
     twiddles: &[F],
 ) -> Vec<EF> {
-    RowMajorMatrix::new(evals, 2)
+    evals
         .rows()
         .zip(twiddles)
         .map(|(row, &t)| {
-            let (lo, hi) = (row[0], row[1]);
+            let mut row_iter = row.into_iter();
+            let (lo, hi) = (row_iter.next().unwrap(), row_iter.next().unwrap());
             let sum = lo + hi;
             let diff = (lo - hi) * t;
             (sum + beta * diff).halve()
@@ -68,7 +71,7 @@ fn circle_bitrev_idx(mut idx: usize, bits: usize) -> usize {
 }
 
 // can do in place if use cycles? bitrev makes it harder
-fn circle_bitrev_permute<T: Clone>(xs: &[T]) -> Vec<T> {
+pub(crate) fn circle_bitrev_permute<T: Clone>(xs: &[T]) -> Vec<T> {
     let bits = log2_strict_usize(xs.len());
     (0..xs.len())
         .map(|i| xs[circle_bitrev_idx(i, bits)].clone())
@@ -121,9 +124,9 @@ mod tests {
 
         evals = circle_bitrev_permute(&evals);
 
-        evals = fold_bivariate::<F, _>(evals, rng.gen());
+        evals = fold_bivariate::<F, _>(RowMajorMatrix::new(evals, 2), rng.gen());
         for _ in log_blowup..(log_n + log_blowup - 1) {
-            evals = fold_univariate::<F, _>(evals, rng.gen());
+            evals = fold_univariate::<F, _>(RowMajorMatrix::new(evals, 2), rng.gen());
         }
         assert_eq!(evals.len(), 1 << log_blowup);
         assert_eq!(
