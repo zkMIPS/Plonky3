@@ -66,7 +66,7 @@ fn fold<F: ComplexExtendable, EF: ExtensionField<F>>(
         .rows()
         .zip(twiddles)
         .map(|(row, &t)| {
-            let (lo, hi) = row.into_iter().next_tuple().unwrap();
+            let (lo, hi) = row.into_iter().copied().next_tuple().unwrap();
             let sum = lo + hi;
             let diff = (lo - hi) * t;
             (sum + beta * diff).halve()

@@ -36,7 +36,7 @@ impl<T, Perm: RowPermutation, Inner: MatrixGet<T>> MatrixGet<T> for PermutedMatr
 }
 
 impl<T, Perm: RowPermutation, Inner: MatrixRows<T>> MatrixRows<T> for PermutedMatrix<Perm, Inner> {
-    type Row<'a> = Inner::Row<'a> where Self: 'a;
+    type Row<'a> = Inner::Row<'a> where Self: 'a, T: 'a;
     fn row(&self, r: usize) -> Self::Row<'_> {
         self.inner.row(Perm::permute_index(r, self.height()))
     }

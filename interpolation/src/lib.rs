@@ -47,7 +47,7 @@ where
 
     let mut sum = vec![EF::zero(); width];
     for (i, (subgroup_i, diff_inv)) in g.powers().zip(diff_invs).enumerate() {
-        let row = coset_evals.row(i).into_iter();
+        let row = coset_evals.row(i).into_iter().cloned();
         add_scaled_base_slice_in_place(&mut sum, row, diff_inv * subgroup_i);
     }
 

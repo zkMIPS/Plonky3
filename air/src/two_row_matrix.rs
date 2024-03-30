@@ -1,4 +1,3 @@
-use core::iter::Cloned;
 use core::slice;
 
 use p3_matrix::{Matrix, MatrixRowSlices, MatrixRows};
@@ -26,7 +25,7 @@ impl<'a, T> Matrix<T> for TwoRowMatrixView<'a, T> {
 }
 
 impl<T: Clone> MatrixRows<T> for TwoRowMatrixView<'_, T> {
-    type Row<'a> = Cloned<slice::Iter<'a, T>> where Self: 'a, T: 'a;
+    type Row<'a> = slice::Iter<'a, T> where Self: 'a, T: 'a;
 
     fn row(&self, r: usize) -> Self::Row<'_> {
         let slice = match r {
@@ -34,7 +33,7 @@ impl<T: Clone> MatrixRows<T> for TwoRowMatrixView<'_, T> {
             1 => self.next,
             _ => panic!("Only two rows available"),
         };
-        slice.iter().cloned()
+        slice.iter()
     }
 }
 

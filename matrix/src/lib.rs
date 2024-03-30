@@ -6,6 +6,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use core::fmt::{Debug, Display, Formatter};
+use p3_field::PackedValue;
 
 use p3_maybe_rayon::prelude::*;
 
@@ -60,18 +61,25 @@ pub trait MatrixGet<T>: Matrix<T> {
 
 /// A `Matrix` that supports randomly accessing particular rows.
 pub trait MatrixRows<T>: Matrix<T> {
-    type Row<'a>: IntoIterator<Item = T>
+    type Row<'a>: IntoIterator<Item = &'a T>
     where
-        Self: 'a;
+        Self: 'a,
+        T: 'a;
 
     fn row(&self, r: usize) -> Self::Row<'_>;
 
-    fn rows(&self) -> impl Iterator<Item = Self::Row<'_>> {
+    fn rows<'a>(&'a self) -> impl Iterator<Item = Self::Row<'a>>
+    where
+        T: 'a,
+    {
         (0..self.height()).map(|r| self.row(r))
     }
 
-    fn row_vec(&self, r: usize) -> Vec<T> {
-        self.row(r).into_iter().collect()
+    fn row_vec(&self, r: usize) -> Vec<T>
+    where
+        T: Clone,
+    {
+        self.row(r).into_iter().cloned().collect()
     }
 
     fn first_row(&self) -> Self::Row<'_> {
@@ -88,7 +96,10 @@ pub trait MatrixRows<T>: Matrix<T> {
         T: Clone,
     {
         RowMajorMatrix::new(
-            (0..self.height()).flat_map(|r| self.row(r)).collect(),
+            (0..self.height())
+                .flat_map(|r| self.row(r))
+                .cloned()
+                .collect(),
             self.width(),
         )
     }
@@ -114,6 +125,16 @@ pub trait MatrixRowSlices<T>: MatrixRows<T> {
         T: 'a,
     {
         (0..self.height()).map(|r| self.row_slice(r))
+    }
+
+    // is this in the right place?
+    fn packed_row<P>(&self, r: usize) -> impl Iterator<Item = P> + '_
+    where
+        T: Clone,
+        P: PackedValue<Value = T>,
+    {
+        debug_assert!(r + P::WIDTH <= self.height());
+        (0..self.width()).map(move |col| P::from_fn(|i| self.row_slice(r + i)[col].clone()))
     }
 }
 

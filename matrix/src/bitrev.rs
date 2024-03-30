@@ -9,12 +9,12 @@ use crate::{Matrix, MatrixGet, MatrixRowSlices, MatrixRowSlicesMut, MatrixRows};
 /// A matrix that is possibly bit-reversed, and can easily switch
 /// between orderings. Pretty much just either `RowMajorMatrix` or
 /// `BitReversedMatrixView<RowMajorMatrix>`.
-pub trait BitReversableMatrix<T>: MatrixRowSlicesMut<T> {
+pub trait BitReversableMatrix<T>: MatrixRowSlicesMut<T> + Clone {
     type BitRev: BitReversableMatrix<T>;
     fn bit_reverse_rows(self) -> Self::BitRev;
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct BitReversedMatrixView<Inner> {
     inner: Inner,
     log_height: usize,
@@ -47,7 +47,7 @@ impl<T, Inner: MatrixGet<T>> MatrixGet<T> for BitReversedMatrixView<Inner> {
 }
 
 impl<T, Inner: MatrixRows<T>> MatrixRows<T> for BitReversedMatrixView<Inner> {
-    type Row<'a> = Inner::Row<'a> where Self: 'a;
+    type Row<'a> = Inner::Row<'a> where Self: 'a, T: 'a;
 
     fn row(&self, r: usize) -> Self::Row<'_> {
         self.inner.row(reverse_bits_len(r, self.log_height))

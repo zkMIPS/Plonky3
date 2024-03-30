@@ -1,11 +1,11 @@
 use alloc::vec::Vec;
 use core::marker::PhantomData;
+use core::slice;
 
-use p3_field::{AbstractExtensionField, ExtensionField, Field};
-use p3_matrix::dense::RowMajorMatrix;
-use p3_matrix::{Dimensions, Matrix, MatrixRows};
+use p3_field::{ExtensionField, Field};
+use p3_matrix::{Dimensions, Matrix, MatrixRowSlices, MatrixRows};
 
-use crate::{DirectMmcs, Mmcs};
+use crate::Mmcs;
 
 #[derive(Clone)]
 pub struct ExtensionMmcs<F, EF, InnerMmcs> {
@@ -28,16 +28,23 @@ where
     EF: ExtensionField<F>,
     InnerMmcs: Mmcs<F>,
 {
-    type ProverData = InnerMmcs::ProverData;
+    type ProverData<M> = InnerMmcs::ProverData<FlatMatrix<EF, M>>;
     type Commitment = InnerMmcs::Commitment;
     type Proof = InnerMmcs::Proof;
     type Error = InnerMmcs::Error;
-    type Mat<'a> = ExtensionMatrix<F, EF, InnerMmcs::Mat<'a>> where Self: 'a;
 
-    fn open_batch(
+    fn commit<M: MatrixRowSlices<EF>>(
+        &self,
+        inputs: Vec<M>,
+    ) -> (Self::Commitment, Self::ProverData<M>) {
+        self.inner
+            .commit(inputs.into_iter().map(|mat| FlatMatrix::new(mat)).collect())
+    }
+
+    fn open_batch<M: MatrixRowSlices<EF>>(
         &self,
         index: usize,
-        prover_data: &Self::ProverData,
+        prover_data: &Self::ProverData<M>,
     ) -> (Vec<Vec<EF>>, Self::Proof) {
         let (opened_base_values, proof) = self.inner.open_batch(index, prover_data);
         let opened_ext_values = opened_base_values
@@ -47,14 +54,14 @@ where
         (opened_ext_values, proof)
     }
 
-    fn get_matrices<'a>(&'a self, prover_data: &'a Self::ProverData) -> Vec<Self::Mat<'a>> {
+    fn get_matrices<'a, M: MatrixRowSlices<EF>>(
+        &self,
+        prover_data: &'a Self::ProverData<M>,
+    ) -> Vec<&'a M> {
         self.inner
             .get_matrices(prover_data)
             .into_iter()
-            .map(|mat| ExtensionMatrix {
-                inner: mat,
-                _phantom: PhantomData,
-            })
+            .map(|mat| &mat.inner)
             .collect()
     }
 
@@ -87,81 +94,47 @@ where
     }
 }
 
-impl<F, EF, InnerMmcs> DirectMmcs<EF> for ExtensionMmcs<F, EF, InnerMmcs>
-where
-    F: Field,
-    EF: ExtensionField<F>,
-    InnerMmcs: DirectMmcs<F>,
-{
-    fn commit(&self, inputs: Vec<RowMajorMatrix<EF>>) -> (Self::Commitment, Self::ProverData) {
-        self.inner.commit(
-            inputs
-                .into_iter()
-                .map(|mat| mat.flatten_to_base())
-                .collect(),
-        )
-    }
+pub struct FlatMatrix<EF, Inner> {
+    inner: Inner,
+    _phantom: PhantomData<EF>,
 }
 
-pub struct ExtensionMatrix<F, EF, InnerMat> {
-    inner: InnerMat,
-    _phantom: PhantomData<(F, EF)>,
-}
-
-impl<F, EF, InnerMat> Matrix<EF> for ExtensionMatrix<F, EF, InnerMat>
-where
-    F: Field,
-    EF: ExtensionField<F>,
-    InnerMat: Matrix<F>,
-{
-    fn width(&self) -> usize {
-        let d = <EF as AbstractExtensionField<F>>::D;
-        debug_assert!(self.inner.width() % d == 0);
-        self.inner.width() / d
-    }
-
-    fn height(&self) -> usize {
-        self.inner.height()
-    }
-}
-
-impl<F, EF, InnerMat> MatrixRows<EF> for ExtensionMatrix<F, EF, InnerMat>
-where
-    F: Field,
-    EF: ExtensionField<F>,
-    InnerMat: MatrixRows<F>,
-{
-    type Row<'a> = ExtensionRow<F, EF, <<InnerMat as MatrixRows<F>>::Row<'a> as IntoIterator>::IntoIter> where Self: 'a;
-
-    fn row(&self, r: usize) -> Self::Row<'_> {
-        ExtensionRow {
-            inner: self.inner.row(r).into_iter(),
+impl<EF, Inner> FlatMatrix<EF, Inner> {
+    fn new(inner: Inner) -> Self {
+        Self {
+            inner,
             _phantom: PhantomData,
         }
     }
 }
 
-pub struct ExtensionRow<F, EF, InnerRowIter> {
-    inner: InnerRowIter,
-    _phantom: PhantomData<(F, EF)>,
+impl<F: Field, EF: ExtensionField<F>, Inner: Matrix<EF>> Matrix<F> for FlatMatrix<EF, Inner> {
+    fn width(&self) -> usize {
+        self.inner.width() * EF::D
+    }
+    fn height(&self) -> usize {
+        self.inner.height()
+    }
 }
 
-impl<F, EF, InnerRowIter> Iterator for ExtensionRow<F, EF, InnerRowIter>
-where
-    F: Field,
-    EF: ExtensionField<F>,
-    InnerRowIter: Iterator<Item = F>,
+// this could be Inner: MatrixRows if you write an adapter
+impl<F: Field, EF: ExtensionField<F>, Inner: MatrixRowSlices<EF>> MatrixRows<F>
+    for FlatMatrix<EF, Inner>
 {
-    type Item = EF;
+    type Row<'a> = core::slice::Iter<'a, F>
+    where
+        Self: 'a;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        let bs: Vec<_> = (&mut self.inner).take(EF::D).collect();
-        if bs.is_empty() {
-            return None;
-        }
-        if bs.len() == EF::D {
-            return Some(EF::from_base_slice(&bs));
-        }
-        panic!("Row length does not divide EF::D");
+    fn row(&self, r: usize) -> Self::Row<'_> {
+        self.row_slice(r).iter()
+    }
+}
+
+impl<F: Field, EF: ExtensionField<F>, Inner: MatrixRowSlices<EF>> MatrixRowSlices<F>
+    for FlatMatrix<EF, Inner>
+{
+    fn row_slice(&self, r: usize) -> &[F] {
+        let buf = self.inner.row_slice(r);
+        unsafe { slice::from_raw_parts(buf.as_ptr().cast::<F>(), buf.len() * EF::D) }
     }
 }

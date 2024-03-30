@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 
 use itertools::Itertools;
 use p3_challenger::{CanObserve, CanSample, GrindingChallenger};
-use p3_commit::{DirectMmcs, Mmcs};
+use p3_commit::Mmcs;
 use p3_field::Field;
 use p3_matrix::dense::RowMajorMatrix;
 use tracing::{info_span, instrument};
@@ -18,7 +18,7 @@ pub fn prove<Folder, F, M, Challenger>(
 ) -> (FriProof<F, M, Challenger::Witness>, Vec<usize>)
 where
     F: Field,
-    M: DirectMmcs<F>,
+    M: Mmcs<F>,
     Challenger: GrindingChallenger + CanObserve<M::Commitment> + CanSample<F>,
     Folder: FriFolder<F>,
 {
@@ -53,7 +53,7 @@ where
 
 fn answer_query<F, M>(
     config: &FriConfig<M>,
-    commit_phase_commits: &[M::ProverData],
+    commit_phase_commits: &[M::ProverData<RowMajorMatrix<F>>],
     index: usize,
 ) -> QueryProof<F, M>
 where
@@ -63,12 +63,12 @@ where
     let commit_phase_openings = commit_phase_commits
         .iter()
         .enumerate()
-        .map(|(i, commit)| {
+        .map(|(i, prover_data)| {
             let index_i = index >> i;
             let index_i_sibling = index_i ^ 1;
             let index_pair = index_i >> 1;
 
-            let (mut opened_rows, opening_proof) = config.mmcs.open_batch(index_pair, commit);
+            let (mut opened_rows, opening_proof) = config.mmcs.open_batch(index_pair, prover_data);
             assert_eq!(opened_rows.len(), 1);
             let opened_row = opened_rows.pop().unwrap();
             assert_eq!(opened_row.len(), 2, "Committed data should be in pairs");
@@ -92,10 +92,10 @@ fn commit_phase<Folder, F, M, Challenger>(
     input: &[Option<Vec<F>>; 32],
     log_max_height: usize,
     challenger: &mut Challenger,
-) -> CommitPhaseResult<F, M>
+) -> CommitPhaseResult<F, M, RowMajorMatrix<F>>
 where
     F: Field,
-    M: DirectMmcs<F>,
+    M: Mmcs<F>,
     Challenger: CanObserve<M::Commitment> + CanSample<F>,
     Folder: FriFolder<F>,
 {
@@ -112,7 +112,7 @@ where
         let beta: F = challenger.sample();
         // we passed ownership of `current` to the MMCS, so get a reference to it
         let leaves = config.mmcs.get_matrices(&prover_data).pop().unwrap();
-        current = Folder::fold_matrix(leaves, beta);
+        current = Folder::fold_matrix(leaves.as_view(), beta);
 
         commits.push(commit);
         data.push(prover_data);
@@ -136,8 +136,8 @@ where
     }
 }
 
-struct CommitPhaseResult<F, M: Mmcs<F>> {
+struct CommitPhaseResult<F, M: Mmcs<F>, Mat> {
     commits: Vec<M::Commitment>,
-    data: Vec<M::ProverData>,
+    data: Vec<M::ProverData<Mat>>,
     final_poly: F,
 }

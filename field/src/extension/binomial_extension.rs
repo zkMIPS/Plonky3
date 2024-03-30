@@ -19,6 +19,7 @@ use crate::{
 };
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash, Serialize, Deserialize)]
+#[repr(transparent)]
 pub struct BinomialExtensionField<AF, const D: usize> {
     #[serde(
         with = "p3_util::array_serialization",

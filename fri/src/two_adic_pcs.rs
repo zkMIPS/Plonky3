@@ -5,7 +5,7 @@ use core::marker::PhantomData;
 
 use itertools::{izip, Itertools};
 use p3_challenger::{CanObserve, CanSample, GrindingChallenger};
-use p3_commit::{DirectMmcs, Mmcs, OpenedValues, Pcs, PolynomialSpace, TwoAdicMultiplicativeCoset};
+use p3_commit::{Mmcs, OpenedValues, Pcs, PolynomialSpace, TwoAdicMultiplicativeCoset};
 use p3_dft::TwoAdicSubgroupDft;
 use p3_field::{
     batch_multiplicative_inverse, cyclic_subgroup_coset_known_order, AbstractField, ExtensionField,
@@ -13,8 +13,8 @@ use p3_field::{
 };
 use p3_interpolation::interpolate_coset;
 use p3_matrix::bitrev::{BitReversableMatrix, BitReversedMatrixView};
-use p3_matrix::dense::{RowMajorMatrix, RowMajorMatrixView};
-use p3_matrix::{Dimensions, Matrix, MatrixRows};
+use p3_matrix::dense::RowMajorMatrix;
+use p3_matrix::{Dimensions, Matrix, MatrixRowSlices, MatrixRows};
 use p3_maybe_rayon::prelude::*;
 use p3_util::linear_map::LinearMap;
 use p3_util::{log2_strict_usize, reverse_bits_len, reverse_slice_index_bits, VecExt};
@@ -100,7 +100,7 @@ impl<F: TwoAdicField> FriFolder<F> for TwoAdicFriFolder {
         m.rows()
             .zip(powers)
             .map(|(row, power)| {
-                let (lo, hi) = row.into_iter().next_tuple().unwrap();
+                let (lo, hi) = row.into_iter().copied().next_tuple().unwrap();
                 (one_half + power) * lo + (one_half - power) * hi
             })
             .collect()
@@ -126,15 +126,15 @@ impl<Val, Dft, InputMmcs, FriMmcs, Challenge, Challenger> Pcs<Challenge, Challen
 where
     Val: TwoAdicField,
     Dft: TwoAdicSubgroupDft<Val>,
-    InputMmcs: 'static + for<'a> DirectMmcs<Val, Mat<'a> = RowMajorMatrixView<'a, Val>>,
-    FriMmcs: DirectMmcs<Challenge>,
+    InputMmcs: 'static + Mmcs<Val>,
+    FriMmcs: Mmcs<Challenge>,
     Challenge: TwoAdicField + ExtensionField<Val>,
     Challenger:
         CanObserve<FriMmcs::Commitment> + CanSample<Challenge> + GrindingChallenger<Witness = Val>,
 {
     type Domain = TwoAdicMultiplicativeCoset<Val>;
     type Commitment = InputMmcs::Commitment;
-    type ProverData = InputMmcs::ProverData;
+    type ProverData = InputMmcs::ProverData<<Dft::Evaluations as BitReversableMatrix<Val>>::BitRev>;
     type Proof = TwoAdicFriPcsProof<Val, Challenge, InputMmcs, FriMmcs>;
     type Error = VerificationError<InputMmcs::Error, FriMmcs::Error>;
 
@@ -151,7 +151,7 @@ where
         &self,
         evaluations: Vec<(Self::Domain, RowMajorMatrix<Val>)>,
     ) -> (Self::Commitment, Self::ProverData) {
-        let ldes: Vec<RowMajorMatrix<Val>> = evaluations
+        let ldes = evaluations
             .into_iter()
             .map(|(domain, evals)| {
                 assert_eq!(domain.size(), evals.height());
@@ -162,10 +162,8 @@ where
                 self.dft
                     .coset_lde_batch(evals, self.fri.log_blowup, shift)
                     .bit_reverse_rows()
-                    .to_row_major_matrix()
             })
-            .collect();
-
+            .collect_vec();
         self.mmcs.commit(ldes)
     }
 
@@ -180,9 +178,9 @@ where
         let lde = self.mmcs.get_matrices(prover_data)[idx];
         assert!(lde.height() >= domain.size());
         let extra_bits = log2_strict_usize(lde.height()) - log2_strict_usize(domain.size());
-        // TODO get rid of these 2 copies
+        // TODO get rid of these copies
         let strided = lde
-            .to_row_major_matrix()
+            .clone()
             .bit_reverse_rows()
             .vertically_strided(1 << extra_bits, 0)
             .to_row_major_matrix();
@@ -281,10 +279,11 @@ where
                     // Use Barycentric interpolation to evaluate the matrix at the given point.
                     let ys = info_span!("compute opened values with Lagrange interpolation")
                         .in_scope(|| {
-                            let (low_coset, _) =
-                                mat.split_rows(mat.height() >> self.fri.log_blowup);
+                            // todo
+                            // let (low_coset, _) = mat.split_rows(mat.height() >> self.fri.log_blowup);
                             interpolate_coset(
-                                &BitReversedMatrixView::new(low_coset),
+                                // &BitReversedMatrixView::new(low_coset),
+                                &mat.clone().bit_reverse_rows(),
                                 Val::generator(),
                                 point,
                             )
@@ -296,7 +295,7 @@ where
                     info_span!("reduce rows").in_scope(|| {
                         reduced_opening_for_log_height
                             .par_iter_mut()
-                            .zip_eq(mat.par_rows())
+                            .zip_eq(mat.row_slices())
                             // This might be longer, but zip will truncate to smaller subgroup
                             // (which is ok because it's bitrev)
                             .zip(inv_denoms.get(&point).unwrap())
@@ -435,7 +434,7 @@ where
 
 #[instrument(skip_all)]
 fn compute_inverse_denominators<F: TwoAdicField, EF: ExtensionField<F>, M: Matrix<F>>(
-    mats_and_points: &[(Vec<M>, &Vec<Vec<EF>>)],
+    mats_and_points: &[(Vec<&M>, &Vec<Vec<EF>>)],
     coset_shift: F,
 ) -> LinearMap<EF, Vec<EF>> {
     let mut max_log_height_for_point: LinearMap<EF, usize> = LinearMap::new();

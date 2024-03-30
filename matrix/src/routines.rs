@@ -20,7 +20,7 @@ where
 {
     let mut accs = vec![EF::zero(); m.width()];
     for (row, vx) in izip!(m.rows(), v) {
-        for (acc, mx) in izip!(&mut accs, row) {
+        for (acc, &mx) in izip!(&mut accs, row) {
             *acc += vx * mx;
         }
     }

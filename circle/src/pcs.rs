@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 
 use itertools::{izip, Itertools};
 use p3_challenger::{CanObserve, CanSample, GrindingChallenger};
-use p3_commit::{DirectMmcs, OpenedValues, Pcs};
+use p3_commit::{Mmcs, OpenedValues, Pcs};
 use p3_field::extension::{Complex, ComplexExtendable, HasFrobenius};
 use p3_field::{batch_multiplicative_inverse, AbstractField, ExtensionField, Field};
 use p3_fri::{FriConfig, FriProof, PowersReducer};
@@ -40,14 +40,15 @@ impl<Val, InputMmcs, FriMmcs, Challenge, Challenger> Pcs<Challenge, Challenger>
     for CirclePcs<Val, InputMmcs, FriMmcs>
 where
     Val: ComplexExtendable,
-    InputMmcs: 'static + for<'a> DirectMmcs<Val, Mat<'a> = RowMajorMatrixView<'a, Val>>,
-    FriMmcs: DirectMmcs<Challenge>,
+    InputMmcs: 'static + Mmcs<Val>,
+    FriMmcs: Mmcs<Challenge>,
     Challenge: ExtensionField<Val> + HasFrobenius<Val>,
     Challenger: GrindingChallenger + CanSample<Challenge> + CanObserve<FriMmcs::Commitment>,
 {
     type Domain = CircleDomain<Val>;
     type Commitment = InputMmcs::Commitment;
-    type ProverData = ProverData<Val, InputMmcs::ProverData>;
+    type ProverData = ProverData<Val, InputMmcs::ProverData<RowMajorMatrix<Val>>>;
+
     // TEMP: pass through reduced query openings
     type Proof = (
         FriProof<Challenge, FriMmcs, Challenger::Witness>,
@@ -96,7 +97,7 @@ where
         assert_eq!(mat.height(), 1 << domain.log_n);
         assert_eq!(domain, data.committed_domains[idx]);
         // PermutedMatrix::<CircleBitrevInvPermutation, _>::new(mat).to_row_major_matrix()
-        mat.to_row_major_matrix()
+        mat.clone().to_row_major_matrix()
     }
 
     #[instrument(skip_all)]
@@ -179,10 +180,13 @@ where
                                 let ps_at_zeta: Vec<Challenge> =
                                     info_span!("compute opened values with Lagrange interpolation")
                                         .in_scope(|| {
-                                            columnwise_dot_product(&mat, basis.into_iter())
-                                                .into_iter()
-                                                .map(|x| x * v_n_at_zeta)
-                                                .collect()
+                                            columnwise_dot_product(
+                                                &mat.as_view(),
+                                                basis.into_iter(),
+                                            )
+                                            .into_iter()
+                                            .map(|x| x * v_n_at_zeta)
+                                            .collect()
                                         });
 
                                 let mu_pow_ps_at_zeta = mu_reducer.reduce_ext(&ps_at_zeta);
@@ -195,7 +199,7 @@ where
                                 .in_scope(|| {
                                     izip!(
                                         reduced_opening_for_log_height.par_iter_mut(),
-                                        mat.par_rows(),
+                                        mat.rows(),
                                         lhs_nums,
                                         inv_lhs_denoms,
                                     )
