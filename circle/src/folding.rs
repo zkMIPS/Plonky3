@@ -87,6 +87,15 @@ fn circle_bitrev_idx(mut idx: usize, bits: usize) -> usize {
     idx
 }
 
+fn circle_bitrev_idx_inv(mut idx: usize, bits: usize) -> usize {
+    for i in (0..bits).rev() {
+        if idx & (1 << i) != 0 {
+            idx ^= (1 << i) - 1;
+        }
+    }
+    reverse_bits_len(idx, bits)
+}
+
 // can do in place if use cycles? bitrev makes it harder
 pub(crate) fn circle_bitrev_permute<T: Clone>(xs: &[T]) -> Vec<T> {
     let bits = log2_strict_usize(xs.len());
@@ -100,6 +109,14 @@ impl RowPermutation for CircleBitrevPermutation {
     fn permute_index(r: usize, height: usize) -> usize {
         let bits = log2_strict_usize(height);
         circle_bitrev_idx(r, bits)
+    }
+}
+
+pub(crate) struct CircleBitrevInvPermutation;
+impl RowPermutation for CircleBitrevInvPermutation {
+    fn permute_index(r: usize, height: usize) -> usize {
+        let bits = log2_strict_usize(height);
+        circle_bitrev_idx_inv(r, bits)
     }
 }
 

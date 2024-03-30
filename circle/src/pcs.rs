@@ -19,7 +19,8 @@ use crate::cfft::Cfft;
 use crate::deep_quotient::{extract_lambda, is_low_degree};
 use crate::domain::CircleDomain;
 use crate::folding::{
-    circle_bitrev_permute, fold_bivariate, CircleBitrevPermutation, CircleFriFolder,
+    circle_bitrev_permute, fold_bivariate, CircleBitrevInvPermutation, CircleBitrevPermutation,
+    CircleFriFolder,
 };
 use crate::util::{univariate_to_point, v_n};
 
@@ -68,8 +69,10 @@ where
                 let committed_domain = CircleDomain::standard(domain.log_n + self.log_blowup);
                 // bitrev for fri?
                 let lde = self.cfft.lde(evals, domain, committed_domain);
-                let perm_lde = PermutedMatrix::<CircleBitrevPermutation, _>::new(lde);
-                (committed_domain, perm_lde)
+
+                // let lde = PermutedMatrix::<CircleBitrevPermutation, _>::new(lde).to_row_major_matrix();
+
+                (committed_domain, lde)
             })
             .unzip();
         let (comm, mmcs_data) = self.mmcs.commit(ldes);
@@ -92,6 +95,7 @@ where
         let mat = self.mmcs.get_matrices(&data.mmcs_data)[idx];
         assert_eq!(mat.height(), 1 << domain.log_n);
         assert_eq!(domain, data.committed_domains[idx]);
+        // PermutedMatrix::<CircleBitrevInvPermutation, _>::new(mat).to_row_major_matrix()
         mat.to_row_major_matrix()
     }
 
@@ -145,6 +149,7 @@ where
                                 let zeta_point = univariate_to_point(zeta).unwrap();
                                 // todo: cache per domain
                                 let basis: Vec<Challenge> = domain.lagrange_basis(zeta_point);
+
                                 let v_n_at_zeta = v_n(zeta_point.real(), log_height)
                                     - v_n(domain.shift.real(), log_height);
 

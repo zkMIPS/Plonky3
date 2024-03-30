@@ -11,7 +11,7 @@ use p3_matrix::{
 use p3_util::log2_strict_usize;
 use tracing::instrument;
 
-use crate::{domain::CircleDomain, util::v_n, Cfft};
+use crate::{domain::CircleDomain, folding::circle_bitrev_permute, util::v_n, Cfft};
 
 fn reduce_matrix<F: ComplexExtendable, EF: ExtensionField<F>>(
     domain: CircleDomain<F>,
@@ -47,6 +47,7 @@ pub fn extract_lambda<F: ComplexExtendable, EF: ExtensionField<F>>(
         .points()
         .map(|x| v_n(x.real(), log2_strict_usize(orig_domain.size())))
         .collect_vec();
+
     let v_d_2: F = v_d.iter().map(|x| x.square()).sum();
 
     let lde_dot_v_d: EF = izip!(lde.iter(), &v_d).map(|(&a, &b)| a * b).sum();
