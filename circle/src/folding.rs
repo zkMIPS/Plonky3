@@ -5,7 +5,7 @@ use p3_field::{
     batch_multiplicative_inverse, extension::ComplexExtendable, AbstractField, ExtensionField,
 };
 use p3_fri::FriFolder;
-use p3_matrix::MatrixRows;
+use p3_matrix::{permuted::RowPermutation, MatrixRows};
 use p3_util::{log2_strict_usize, reverse_bits_len};
 
 use crate::domain::CircleDomain;
@@ -95,6 +95,14 @@ pub(crate) fn circle_bitrev_permute<T: Clone>(xs: &[T]) -> Vec<T> {
         .collect()
 }
 
+pub(crate) struct CircleBitrevPermutation;
+impl RowPermutation for CircleBitrevPermutation {
+    fn permute_index(r: usize, height: usize) -> usize {
+        let bits = log2_strict_usize(height);
+        circle_bitrev_idx(r, bits)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use p3_field::{
@@ -158,53 +166,5 @@ mod tests {
     fn test_folding() {
         do_test_folding(4, 1);
         do_test_folding(5, 2);
-    }
-
-    #[test]
-    fn test_fold_pair() {
-        let mut rng = thread_rng();
-        type F = Mersenne31;
-        // type EF = BinomialExtensionField<F, 3>;
-        type EF = F;
-        type Folder = CircleFriFolder<F>;
-
-        let log_n = 4;
-        let n = 1 << log_n;
-
-        let evals = RowMajorMatrix::<EF>::rand(&mut rng, n >> 1, 2);
-        let beta: EF = rng.gen();
-        let folded = Folder::fold_matrix(evals.clone(), beta);
-
-        /*
-        let domain = CircleDomain::<F>::standard(log2_strict_usize(evals.height()) + 2);
-        let mut twiddles = batch_multiplicative_inverse(
-            &domain
-                .points()
-                .take(evals.height())
-                .map(|p| p.real())
-                .collect_vec(),
-        );
-        twiddles = circle_bitrev_permute(&twiddles);
-
-        for i in 0..(n >> 1) {
-            let shift = F::circle_two_adic_generator(log_n + 2);
-            let g = F::circle_two_adic_generator(log_n + 1);
-            let orig_idx = circle_bitrev_idx(i, log_n - 1);
-            let computed_twiddle = (shift * g.exp_u64(orig_idx as u64)).real().inverse();
-            println!("{i:>2}: {} {}", twiddles[i], computed_twiddle);
-        }
-        */
-
-        for i in 0..(n >> 1) {
-            println!(
-                "{i:>2}: [{}, {}], {}, {}",
-                evals.get(i, 0),
-                evals.get(i, 1),
-                folded[i],
-                Folder::fold_row(i, log_n, evals.row_slice(i), beta),
-            );
-        }
-
-        // dbg!(folded);
     }
 }

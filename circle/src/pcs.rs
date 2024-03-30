@@ -8,6 +8,7 @@ use p3_field::extension::{Complex, ComplexExtendable, HasFrobenius};
 use p3_field::{batch_multiplicative_inverse, AbstractField, ExtensionField, Field};
 use p3_fri::{FriConfig, FriProof, PowersReducer};
 use p3_matrix::dense::{RowMajorMatrix, RowMajorMatrixView};
+use p3_matrix::permuted::PermutedMatrix;
 use p3_matrix::routines::columnwise_dot_product;
 use p3_matrix::{Matrix, MatrixRows};
 use p3_maybe_rayon::prelude::*;
@@ -17,7 +18,9 @@ use tracing::{info_span, instrument};
 use crate::cfft::Cfft;
 use crate::deep_quotient::{extract_lambda, is_low_degree};
 use crate::domain::CircleDomain;
-use crate::folding::{circle_bitrev_permute, fold_bivariate, CircleFriFolder};
+use crate::folding::{
+    circle_bitrev_permute, fold_bivariate, CircleBitrevPermutation, CircleFriFolder,
+};
 use crate::util::{univariate_to_point, v_n};
 
 pub struct CirclePcs<Val, InputMmcs, FriMmcs> {
@@ -65,7 +68,8 @@ where
                 let committed_domain = CircleDomain::standard(domain.log_n + self.log_blowup);
                 // bitrev for fri?
                 let lde = self.cfft.lde(evals, domain, committed_domain);
-                (committed_domain, lde)
+                let perm_lde = PermutedMatrix::<CircleBitrevPermutation, _>::new(lde);
+                (committed_domain, perm_lde)
             })
             .unzip();
         let (comm, mmcs_data) = self.mmcs.commit(ldes);

@@ -15,6 +15,7 @@ use crate::strided::VerticallyStridedMatrixView;
 pub mod bitrev;
 pub mod dense;
 pub mod mul;
+pub mod permuted;
 pub mod routines;
 pub mod sparse;
 pub mod stack;
