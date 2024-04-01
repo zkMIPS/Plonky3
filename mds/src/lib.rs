@@ -10,6 +10,7 @@ mod butterflies;
 pub mod coset_mds;
 pub mod integrated_coset_mds;
 pub mod karatsuba_convolution;
+pub mod naive_mds;
 pub mod util;
 
 pub trait MdsPermutation<T: Clone, const WIDTH: usize>: Permutation<[T; WIDTH]> {}

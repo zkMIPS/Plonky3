@@ -6,6 +6,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 p3-field = { path = "../field" }
+p3-goldilocks = { path = "../goldilocks" }
 p3-mds = { path = "../mds" }
 p3-symmetric = { path = "../symmetric" }
 rand = "0.8.5"
