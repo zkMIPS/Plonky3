@@ -2,23 +2,43 @@
 // See https://github.com/0xPolygonZero/hash-constants
 // Note the the number of rounds
 
-use p3_field::PrimeField32;
-// These round numbers will presumably work for all 31-bit prime fields but we have only checked the following primes.
-const TESTED_31_BIT_PRIMES: [u32; 3] = [(1 << 31) - 1, (1 << 31) - (1 << 27) + 1, (1 << 31) - (1 << 24) + 1];
+use p3_field::PrimeField64;
+// Mersenne31, KoalaBear and BabyBear fields
+const PRIMES_31_BIT: [u64; 3] = [
+    (1 << 31) - 1,
+    (1 << 31) - (1 << 24) + 1,
+    (1 << 31) - (1 << 27) + 1,
+];
+
+// Goldilocks and Crandall Primes
+const PRIMES_64_BIT: [u64; 2] = [0xFFFFFFFF00000001, 0xFFFFFFFF70000001];
 
 /// Given a field, a width and an alpha return the number of full and partial rounds needed to achieve 128 bit security.
-pub fn poseidon_round_numbers<F: PrimeField32>(width: u64, alpha: u64) -> (u32, u32) {
-    assert!(TESTED_31_BIT_PRIMES.contains(&F::ORDER_U32));
-    match (width, alpha) {
-        (16, 3) => (8, 20),
-        (16, 5) => (8, 14),
-        (16, 7) => (8, 13),
-        (16, 11) => (8, 13),
-        (24, 3) => (8, 23),
-        (24, 5) => (8, 22),
-        (24, 7) => (8, 21),
-        (24, 11) => (8, 21),
-        _ => panic!("The given pair of width and alpha has not been checked"),
+pub fn poseidon_round_numbers_128<F: PrimeField64>(width: usize, alpha: u64) -> (usize, usize) {
+    assert!(PRIMES_31_BIT.contains(&F::ORDER_U64) || PRIMES_64_BIT.contains(&F::ORDER_U64));
+
+    if PRIMES_31_BIT.contains(&F::ORDER_U64) {
+        match (width, alpha) {
+            (16, 3) => (8, 20),
+            (16, 5) => (8, 14),
+            (16, 7) => (8, 13),
+            (16, 11) => (8, 13),
+            (24, 3) => (8, 23),
+            (24, 5) => (8, 22),
+            (24, 7) => (8, 21),
+            (24, 11) => (8, 21),
+            _ => panic!("The given pair of width and alpha has not been checked"),
+        }
+    } else {
+        match (width, alpha) {
+            (8, 7) => (8, 22),
+            (12, 7) => (8, 22),
+            (16, 7) => (8, 22),
+            (8, 11) => (8, 17),
+            (12, 11) => (8, 18),
+            (16, 11) => (8, 18),
+            _ => panic!("The given pair of width and alpha has not been checked"),
+        }
     }
 }
 

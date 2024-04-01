@@ -88,9 +88,12 @@ impl DiffusionPermutation<BabyBear, 16> for DiffusionMatrixBabybearScalar {}
 #[cfg(test)]
 mod tests {
     use core::array;
-    
+
     use p3_field::AbstractField;
-    use p3_poseidon2::{HLMDSMat4, Poseidon2, Poseidon2ExternalMatrix, HL_BABYBEAR_16_EXTERNAL_ROUND_CONSTANTS, HL_BABYBEAR_16_INTERNAL_ROUND_CONSTANTS};
+    use p3_poseidon2::{
+        Poseidon2, Poseidon2ExternalMatrixHL, HL_BABYBEAR_16_EXTERNAL_ROUND_CONSTANTS,
+        HL_BABYBEAR_16_INTERNAL_ROUND_CONSTANTS,
+    };
 
     use super::*;
 
@@ -113,19 +116,19 @@ mod tests {
         const ROUNDS_F: usize = 8;
         const ROUNDS_P: usize = 13;
 
-        let external_linear_layer: Poseidon2ExternalMatrix<_> = Poseidon2ExternalMatrix::new(HLMDSMat4);
-
         // Our Poseidon2 implementation.
         let poseidon2: Poseidon2<
             BabyBear,
-            Poseidon2ExternalMatrix<_>,
+            Poseidon2ExternalMatrixHL,
             DiffusionMatrixBabybear,
             WIDTH,
             D,
         > = Poseidon2::new(
             ROUNDS_F,
-            HL_BABYBEAR_16_EXTERNAL_ROUND_CONSTANTS.map(to_babybear_array).to_vec(),
-            external_linear_layer,
+            HL_BABYBEAR_16_EXTERNAL_ROUND_CONSTANTS
+                .map(to_babybear_array)
+                .to_vec(),
+            Poseidon2ExternalMatrixHL,
             ROUNDS_P,
             to_babybear_array(HL_BABYBEAR_16_INTERNAL_ROUND_CONSTANTS).to_vec(),
             DiffusionMatrixBabybear,
@@ -134,21 +137,22 @@ mod tests {
         poseidon2.permute_mut(input);
     }
 
-    /// Test on the constant 0 input. 
+    /// Test on the constant 0 input.
     #[test]
     fn test_poseidon2_width_16_zeroes() {
         let mut input: [BabyBear; 16] = [0_u32; 16].map(F::from_wrapped_u32);
 
         let expected: [BabyBear; 16] = [
-            1337856655, 1843094405, 328115114, 964209316, 1365212758, 1431554563, 210126733, 
-            1214932203, 1929553766, 1647595522, 1496863878, 324695999, 1569728319, 1634598391, 
-            597968641, 679989771
-        ].map(BabyBear::from_canonical_u32);
+            1337856655, 1843094405, 328115114, 964209316, 1365212758, 1431554563, 210126733,
+            1214932203, 1929553766, 1647595522, 1496863878, 324695999, 1569728319, 1634598391,
+            597968641, 679989771,
+        ]
+        .map(BabyBear::from_canonical_u32);
         hl_poseidon2_babybear_width_16(&mut input);
         assert_eq!(input, expected);
     }
 
-    /// Test on the input 0..16. 
+    /// Test on the input 0..16.
     #[test]
     fn test_poseidon2_width_16_range() {
         let mut input: [BabyBear; 16] = array::from_fn(|i| F::from_wrapped_u32(i as u32));
@@ -157,17 +161,28 @@ mod tests {
             896560466, 771677727, 128113032, 1378976435, 160019712, 1452738514, 682850273,
             223500421, 501450187, 1804685789, 1671399593, 1788755219, 1736880027, 1352180784,
             1928489698, 1128802977,
-        ].map(BabyBear::from_canonical_u32);
+        ]
+        .map(BabyBear::from_canonical_u32);
         hl_poseidon2_babybear_width_16(&mut input);
         assert_eq!(input, expected);
     }
 
-    /// Test on a roughly random input. 
+    /// Test on a roughly random input.
     #[test]
     fn test_poseidon2_width_16_random() {
-        let mut input: [BabyBear; 16] = [1179785652, 1291567559, 66272299, 471640172, 653876821, 478855335, 871063984, 540251327, 1506944720, 1403776782, 770420443, 126472305, 1535928603, 1017977016, 818646757, 359411429].map(BabyBear::from_canonical_u32);
+        let mut input: [BabyBear; 16] = [
+            1179785652, 1291567559, 66272299, 471640172, 653876821, 478855335, 871063984,
+            540251327, 1506944720, 1403776782, 770420443, 126472305, 1535928603, 1017977016,
+            818646757, 359411429,
+        ]
+        .map(BabyBear::from_canonical_u32);
 
-        let expected: [BabyBear; 16] = [1736862924, 1950079822, 952072292, 1965704005, 236226362, 1113998185, 1624488077, 391891139, 1194078311, 1040746778, 1898067001, 774167026, 193702242, 859952892, 732204701, 1744970965].map(BabyBear::from_canonical_u32);
+        let expected: [BabyBear; 16] = [
+            1736862924, 1950079822, 952072292, 1965704005, 236226362, 1113998185, 1624488077,
+            391891139, 1194078311, 1040746778, 1898067001, 774167026, 193702242, 859952892,
+            732204701, 1744970965,
+        ]
+        .map(BabyBear::from_canonical_u32);
 
         hl_poseidon2_babybear_width_16(&mut input);
         assert_eq!(input, expected);

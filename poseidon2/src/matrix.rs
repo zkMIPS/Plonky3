@@ -5,8 +5,8 @@ use p3_symmetric::Permutation;
 extern crate alloc;
 
 // For the external layers we use a matrix of the form circ(2M_4, M_4, ..., M_4)
-// Where M_4 is a 4 x 4 MDS matrix
-pub trait MdsLightPermutation<T: Clone, const WIDTH: usize>: Permutation<[T; WIDTH]> {}
+// Where M_4 is a 4 x 4 MDS matrix. This leads to a permutation which has slightly weaker properties to MDS
+pub trait MDSLightPermutation<T: Clone, const WIDTH: usize>: Permutation<[T; WIDTH]> {}
 
 // Multiply a 4-element vector x by
 // [ 5 7 1 3 ]
@@ -87,100 +87,102 @@ impl<AF: AbstractField> Permutation<[AF; 4]> for MDSMat4 {
 }
 impl<AF: AbstractField> MdsPermutation<AF, 4> for MDSMat4 {}
 
-#[derive(Copy, Clone, Default)]
-pub struct Poseidon2ExternalMatrix<MdsPerm4> {
-    // A 4x4 MDS Matrix
-    mat4: MdsPerm4,
-}
-
-// At some point we should switch this matrix to:
-// [ 2 3 1 1 ]
-// [ 1 2 3 1 ]
-// [ 1 1 2 3 ]
-// [ 3 1 1 2 ].
-// This is more efficient than the one above (11 additions vs 16 additions) and leads to a ~5% speed up.
-// Unfortunately it breaks all the tests as we are testing against the implementation from zkhash.
-// Hence will leave this as a comment for now and implement later.
-// fn apply_m_4<AF>(x: &mut [AF])
-// where
-//     AF: AbstractField,
-//     AF::F: PrimeField,
-// {
-//
-// }
-
-impl<MdsPerm4> Poseidon2ExternalMatrix<MdsPerm4> {
-    pub fn new(mat4: MdsPerm4) -> Self {
-        Self { mat4 }
-    }
-}
-
-impl<AF, const WIDTH: usize, MdsPerm4> Permutation<[AF; WIDTH]>
-    for Poseidon2ExternalMatrix<MdsPerm4>
-where
+pub fn light_mds_permutation<
     AF: AbstractField,
-    AF::F: PrimeField,
     MdsPerm4: MdsPermutation<AF, 4>,
-{
-    fn permute_mut(&self, state: &mut [AF; WIDTH]) {
-        match WIDTH {
-            2 => {
-                let sum = state[0].clone() + state[1].clone();
-                state[0] += sum.clone();
-                state[1] += sum;
+    const WIDTH: usize,
+>(
+    state: &mut [AF; WIDTH],
+    mdsmat: MdsPerm4,
+) {
+    match WIDTH {
+        2 => {
+            let sum = state[0].clone() + state[1].clone();
+            state[0] += sum.clone();
+            state[1] += sum;
+        }
+
+        3 => {
+            let sum = state[0].clone() + state[1].clone() + state[2].clone();
+            state[0] += sum.clone();
+            state[1] += sum.clone();
+            state[2] += sum;
+        }
+
+        4 | 8 | 12 | 16 | 20 | 24 => {
+            // First, we apply M_4 to each consecutive four elements of the state.
+            // In Appendix B's terminology, this replaces each x_i with x_i'.
+            for i in (0..WIDTH).step_by(4) {
+                // Would be nice to find a better way to do this.
+                let state_4 = [
+                    state[i].clone(),
+                    state[i + 1].clone(),
+                    state[i + 2].clone(),
+                    state[i + 3].clone(),
+                ];
+                let updated_state = mdsmat.permute(state_4);
+                state[i..i + 4].clone_from_slice(&updated_state);
             }
 
-            3 => {
-                let sum = state[0].clone() + state[1].clone() + state[2].clone();
-                state[0] += sum.clone();
-                state[1] += sum.clone();
-                state[2] += sum;
+            // Now, we apply the outer circulant matrix (to compute the y_i values).
+
+            // We first precompute the four sums of every four elements.
+            let sums: [AF; 4] = core::array::from_fn(|k| {
+                (0..WIDTH)
+                    .step_by(4)
+                    .map(|j| state[j + k].clone())
+                    .sum::<AF>()
+            });
+
+            // The formula for each y_i involves 2x_i' term and x_j' terms for each j that equals i mod 4.
+            // In other words, we can add a single copy of x_i' to the appropriate one of our precomputed sums
+            for i in 0..WIDTH {
+                state[i] += sums[i % 4].clone();
             }
+        }
 
-            4 | 8 | 12 | 16 | 20 | 24 => {
-                // First, we apply M_4 to each consecutive four elements of the state.
-                // In Appendix B's terminology, this replaces each x_i with x_i'.
-                for i in (0..WIDTH).step_by(4) {
-                    // Would be nice to find a better way to do this.
-                    let state_4 = [
-                        state[i].clone(),
-                        state[i + 1].clone(),
-                        state[i + 2].clone(),
-                        state[i + 3].clone(),
-                    ];
-                    let updated_state = self.mat4.permute(state_4);
-                    state[i..i + 4].clone_from_slice(&updated_state);
-                }
-
-                // Now, we apply the outer circulant matrix (to compute the y_i values).
-
-                // We first precompute the four sums of every four elements.
-                let sums: [AF; 4] = core::array::from_fn(|k| {
-                    (0..WIDTH)
-                        .step_by(4)
-                        .map(|j| state[j + k].clone())
-                        .sum::<AF>()
-                });
-
-                // The formula for each y_i involves 2x_i' term and x_j' terms for each j that equals i mod 4.
-                // In other words, we can add a single copy of x_i' to the appropriate one of our precomputed sums
-                for i in 0..WIDTH {
-                    state[i] += sums[i % 4].clone();
-                }
-            }
-
-            _ => {
-                panic!("Unsupported width");
-            }
+        _ => {
+            panic!("Unsupported width");
         }
     }
 }
 
-impl<AF, const WIDTH: usize, MdsPerm4> MdsLightPermutation<AF, WIDTH>
-    for Poseidon2ExternalMatrix<MdsPerm4>
+#[derive(Default, Clone)]
+pub struct Poseidon2ExternalMatrixGeneral;
+
+impl<AF, const WIDTH: usize> Permutation<[AF; WIDTH]> for Poseidon2ExternalMatrixGeneral
 where
     AF: AbstractField,
     AF::F: PrimeField,
-    MdsPerm4: MdsPermutation<AF, 4>,
+{
+    fn permute_mut(&self, state: &mut [AF; WIDTH]) {
+        light_mds_permutation::<AF, MDSMat4, WIDTH>(state, MDSMat4)
+    }
+}
+
+impl<AF, const WIDTH: usize> MDSLightPermutation<AF, WIDTH> for Poseidon2ExternalMatrixGeneral
+where
+    AF: AbstractField,
+    AF::F: PrimeField,
+{
+}
+
+#[derive(Default, Clone)]
+pub struct Poseidon2ExternalMatrixHL;
+
+impl<AF, const WIDTH: usize> Permutation<[AF; WIDTH]> for Poseidon2ExternalMatrixHL
+where
+    AF: AbstractField,
+    AF::F: PrimeField,
+{
+    fn permute_mut(&self, state: &mut [AF; WIDTH]) {
+        light_mds_permutation::<AF, HLMDSMat4, WIDTH>(state, HLMDSMat4)
+    }
+}
+
+impl<AF, const WIDTH: usize> MDSLightPermutation<AF, WIDTH> for Poseidon2ExternalMatrixHL
+where
+    AF: AbstractField,
+    AF::F: PrimeField,
 {
 }

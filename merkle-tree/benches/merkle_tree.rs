@@ -10,7 +10,7 @@ use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::Matrix;
 use p3_mds::integrated_coset_mds::IntegratedCosetMds;
 use p3_merkle_tree::FieldMerkleTreeMmcs;
-use p3_poseidon2::{Poseidon2, HLMDSMat4, Poseidon2ExternalMatrix};
+use p3_poseidon2::{Poseidon2, Poseidon2ExternalMatrixGeneral};
 use p3_rescue::{BasicSboxLayer, Rescue};
 use p3_symmetric::{
     CompressionFunctionFromHasher, CryptographicHasher, PaddingFreeSponge,
@@ -31,9 +31,12 @@ fn bench_merkle_trees(criterion: &mut Criterion) {
 fn bench_bb_poseidon2(criterion: &mut Criterion) {
     type F = BabyBear;
 
-    let external_linear_layer: Poseidon2ExternalMatrix<_> = Poseidon2ExternalMatrix::new(HLMDSMat4);
-    type Perm = Poseidon2<F, Poseidon2ExternalMatrix<HLMDSMat4>, DiffusionMatrixBabybear, 16, 7>;
-    let perm = Perm::new_from_rng(8, external_linear_layer, 22, DiffusionMatrixBabybear, &mut thread_rng());
+    type Perm = Poseidon2<F, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabybear, 16, 7>;
+    let perm = Perm::new_from_rng_128(
+        Poseidon2ExternalMatrixGeneral,
+        DiffusionMatrixBabybear,
+        &mut thread_rng(),
+    );
 
     type H = PaddingFreeSponge<Perm, 16, 8, 8>;
     let h = H::new(perm.clone());
