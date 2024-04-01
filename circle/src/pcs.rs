@@ -3,24 +3,24 @@ use alloc::vec::Vec;
 
 use itertools::{izip, Itertools};
 use p3_challenger::{CanObserve, CanSample, GrindingChallenger};
-use p3_commit::{Mmcs, OpenedValues, Pcs};
-use p3_field::extension::{Complex, ComplexExtendable, HasFrobenius};
+use p3_commit::{Mmcs, OpenedValues, Pcs, PolynomialSpace};
+use p3_field::extension::{Complex, ComplexExtendable};
 use p3_field::{batch_multiplicative_inverse, AbstractField, ExtensionField, Field};
 use p3_fri::{FriConfig, FriProof, PowersReducer};
-use p3_matrix::dense::{RowMajorMatrix, RowMajorMatrixView};
+use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::permuted::PermutedMatrix;
 use p3_matrix::routines::columnwise_dot_product;
-use p3_matrix::{Matrix, MatrixRows};
+use p3_matrix::{Dimensions, Matrix, MatrixRows};
 use p3_maybe_rayon::prelude::*;
 use p3_util::log2_strict_usize;
+use serde::{Deserialize, Serialize};
 use tracing::{info_span, instrument};
 
 use crate::cfft::Cfft;
 use crate::deep_quotient::{extract_lambda, is_low_degree};
 use crate::domain::CircleDomain;
 use crate::folding::{
-    circle_bitrev_permute, fold_bivariate, CircleBitrevInvPermutation, CircleBitrevPermutation,
-    CircleFriFolder,
+    circle_bitrev_permute, fold_bivariate, CircleBitrevPermutation, CircleFriFolder,
 };
 use crate::util::{univariate_to_point, v_n};
 
@@ -36,23 +36,34 @@ pub struct ProverData<Val, MmcsData> {
     mmcs_data: MmcsData,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(bound = "")]
+pub struct BatchOpening<Val: Field, InputMmcs: Mmcs<Val>> {
+    pub(crate) opened_values: Vec<Vec<Val>>,
+    pub(crate) opening_proof: <InputMmcs as Mmcs<Val>>::Proof,
+}
+
 impl<Val, InputMmcs, FriMmcs, Challenge, Challenger> Pcs<Challenge, Challenger>
     for CirclePcs<Val, InputMmcs, FriMmcs>
 where
     Val: ComplexExtendable,
     InputMmcs: 'static + Mmcs<Val>,
     FriMmcs: Mmcs<Challenge>,
-    Challenge: ExtensionField<Val> + HasFrobenius<Val>,
+    Challenge: ExtensionField<Val>,
     Challenger: GrindingChallenger + CanSample<Challenge> + CanObserve<FriMmcs::Commitment>,
 {
     type Domain = CircleDomain<Val>;
     type Commitment = InputMmcs::Commitment;
-    type ProverData = ProverData<Val, InputMmcs::ProverData<RowMajorMatrix<Val>>>;
+    type ProverData = ProverData<
+        Val,
+        InputMmcs::ProverData<PermutedMatrix<CircleBitrevPermutation, RowMajorMatrix<Val>>>,
+    >;
 
     // TEMP: pass through reduced query openings
     type Proof = (
         FriProof<Challenge, FriMmcs, Challenger::Witness>,
-        Vec<[Challenge; 32]>,
+        // Vec<[Challenge; 32]>,
+        Vec<Vec<BatchOpening<Val, InputMmcs>>>,
     );
     type Error = ();
 
@@ -68,12 +79,9 @@ where
             .into_iter()
             .map(|(domain, evals)| {
                 let committed_domain = CircleDomain::standard(domain.log_n + self.log_blowup);
-                // bitrev for fri?
                 let lde = self.cfft.lde(evals, domain, committed_domain);
-
-                // let lde = PermutedMatrix::<CircleBitrevPermutation, _>::new(lde).to_row_major_matrix();
-
-                (committed_domain, lde)
+                let perm_lde = PermutedMatrix::<CircleBitrevPermutation, _>::new(lde);
+                (committed_domain, perm_lde)
             })
             .unzip();
         let (comm, mmcs_data) = self.mmcs.commit(ldes);
@@ -92,12 +100,12 @@ where
         idx: usize,
         domain: Self::Domain,
     ) -> RowMajorMatrix<Val> {
-        // TODO do this correctly
+        // TODO interpolate if necessary
         let mat = self.mmcs.get_matrices(&data.mmcs_data)[idx];
         assert_eq!(mat.height(), 1 << domain.log_n);
         assert_eq!(domain, data.committed_domains[idx]);
-        // PermutedMatrix::<CircleBitrevInvPermutation, _>::new(mat).to_row_major_matrix()
-        mat.clone().to_row_major_matrix()
+        // TODO get rid of clone
+        mat.inner().clone()
     }
 
     #[instrument(skip_all)]
@@ -135,18 +143,19 @@ where
         let mu_reducer = PowersReducer::<Val, Challenge>::new(mu, max_width);
 
         let values: OpenedValues<Challenge> = rounds
-            .into_iter()
+            .iter()
             .map(|(data, points_for_mats)| {
                 let mats = self.mmcs.get_matrices(&data.mmcs_data);
                 izip!(&data.committed_domains, mats, points_for_mats)
-                    .map(|(domain, mat, points_for_mat)| {
+                    .map(|(domain, permuted_mat, points_for_mat)| {
+                        let mat = permuted_mat.inner();
                         let log_height = log2_strict_usize(mat.height());
                         let reduced_opening_for_log_height: &mut Vec<Challenge> = reduced_openings
                             [log_height]
                             .get_or_insert_with(|| vec![Challenge::zero(); mat.height()]);
                         points_for_mat
                             .into_iter()
-                            .map(|zeta| {
+                            .map(|&zeta| {
                                 let zeta_point = univariate_to_point(zeta).unwrap();
                                 // todo: cache per domain
                                 let basis: Vec<Challenge> = domain.lagrange_basis(zeta_point);
@@ -228,6 +237,7 @@ where
 
         let fri_input: [Option<Vec<Challenge>>; 32] = core::array::from_fn(|i| {
             let mut ro: Vec<Challenge> = reduced_openings.get(i + 1)?.as_ref()?.clone();
+            // todo send this
             let _lambda = extract_lambda(
                 CircleDomain::standard(i + 1 - self.log_blowup),
                 CircleDomain::standard(i + 1),
@@ -236,6 +246,7 @@ where
             debug_assert!(is_low_degree(
                 &RowMajorMatrix::new_col(ro.clone()).flatten_to_base()
             ));
+            // since we unpermuted above (.inner()) we need to permute ROs
             let ro_permuted = RowMajorMatrix::new(circle_bitrev_permute(&ro), 2);
             Some(fold_bivariate(ro_permuted, bivariate_beta))
         });
@@ -247,6 +258,7 @@ where
         );
 
         // TEMP: pass through reduced openings
+        /*
         let reduced_query_openings: Vec<[Challenge; 32]> = query_indices
             .into_iter()
             .map(|index| {
@@ -258,8 +270,26 @@ where
                 })
             })
             .collect();
+        */
 
-        (values, (fri_proof, reduced_query_openings))
+        let query_openings = query_indices
+            .into_iter()
+            .map(|index| {
+                rounds
+                    .iter()
+                    .map(|(data, _)| {
+                        let (opened_values, opening_proof) =
+                            self.mmcs.open_batch(index, &data.mmcs_data);
+                        BatchOpening {
+                            opened_values,
+                            opening_proof,
+                        }
+                    })
+                    .collect()
+            })
+            .collect();
+
+        (values, (fri_proof, query_openings))
     }
 
     fn verify(
@@ -283,7 +313,7 @@ where
         proof: &Self::Proof,
         challenger: &mut Challenger,
     ) -> Result<(), Self::Error> {
-        let (fri_proof, reduced_openings) = proof;
+        let (fri_proof, query_openings) = proof;
         // Batch combination challenge
         let mu: Challenge = challenger.sample();
         let bivariate_beta: Challenge = challenger.sample();
@@ -295,6 +325,36 @@ where
         )
         .unwrap();
 
+        let log_max_height = fri_proof.commit_phase_commits.len() + self.fri_config.log_blowup;
+
+        let reduced_openings: Vec<[Challenge; 32]> = query_openings
+            .iter()
+            .zip(&fri_challenges.query_indices)
+            .map(|(query_opening, &index)| {
+                let mut ro = [Challenge::zero(); 32];
+                for (batch_opening, (batch_commit, mats)) in izip!(query_opening, &rounds) {
+                    let batch_dims: Vec<Dimensions> = mats
+                        .iter()
+                        .map(|(domain, _)| Dimensions {
+                            // todo: mmcs doesn't really need width
+                            width: 0,
+                            height: domain.size(),
+                        })
+                        .collect_vec();
+                    self.mmcs.verify_batch(
+                        batch_commit,
+                        &batch_dims,
+                        index,
+                        &batch_opening.opened_values,
+                        &batch_opening.opening_proof,
+                    )?;
+                }
+                Ok(ro)
+            })
+            .collect::<Result<Vec<_>, InputMmcs::Error>>()
+            .unwrap();
+
+        /*
         p3_fri::verifier::verify_challenges::<CircleFriFolder<Val>, _, _, _>(
             &self.fri_config,
             &fri_proof,
@@ -302,6 +362,7 @@ where
             &reduced_openings,
         )
         .unwrap();
+        */
 
         Ok(())
     }

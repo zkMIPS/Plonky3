@@ -5,7 +5,7 @@ use p3_field::{
     batch_multiplicative_inverse, extension::ComplexExtendable, AbstractField, ExtensionField,
 };
 use p3_fri::FriFolder;
-use p3_matrix::{permuted::RowPermutation, MatrixRows};
+use p3_matrix::{dense::RowMajorMatrix, permuted::RowPermutation, Matrix, MatrixRows};
 use p3_util::{log2_strict_usize, reverse_bits_len};
 
 use crate::domain::CircleDomain;
@@ -27,9 +27,12 @@ pub(crate) fn fold_bivariate<F: ComplexExtendable, EF: ExtensionField<F>>(
     fold(evals, beta, &twiddles)
 }
 
-pub(crate) struct CircleFriFolder<F>(PhantomData<F>);
+pub(crate) struct CircleFriFolder<F, EF> {
+    bivariate_beta: EF,
+    _phantom: PhantomData<F>,
+}
 
-impl<F: ComplexExtendable, EF: ExtensionField<F>> FriFolder<EF> for CircleFriFolder<F> {
+impl<F: ComplexExtendable, EF: ExtensionField<F>> FriFolder<EF> for CircleFriFolder<F, EF> {
     fn fold_matrix<M: MatrixRows<EF>>(m: M, beta: EF) -> Vec<EF> {
         assert_eq!(m.width(), 2);
         let domain = CircleDomain::standard(log2_strict_usize(m.height()) + 2);
@@ -54,6 +57,22 @@ impl<F: ComplexExtendable, EF: ExtensionField<F>> FriFolder<EF> for CircleFriFol
         let sum = evals[0] + evals[1];
         let diff = (evals[0] - evals[1]) * t;
         (sum + beta * diff).halve()
+    }
+    fn combine_vec(&self, current: &mut [EF], new: &[EF]) {
+        let new = RowMajorMatrix::new(new.to_vec(), 2);
+        let domain = CircleDomain::standard(log2_strict_usize(new.height()) + 1);
+        let mut twiddles = batch_multiplicative_inverse(
+            &domain
+                .points()
+                .take(new.height())
+                .map(|p| p.imag())
+                .collect_vec(),
+        );
+        twiddles = circle_bitrev_permute(&twiddles);
+        let folded = fold(new, self.bivariate_beta, &twiddles);
+    }
+    fn combine_row(&self, current: &mut EF, new: EF, index: usize, log_height: usize) {
+        todo!()
     }
 }
 
@@ -104,7 +123,7 @@ pub(crate) fn circle_bitrev_permute<T: Clone>(xs: &[T]) -> Vec<T> {
         .collect()
 }
 
-pub(crate) struct CircleBitrevPermutation;
+pub struct CircleBitrevPermutation;
 impl RowPermutation for CircleBitrevPermutation {
     fn permute_index(r: usize, height: usize) -> usize {
         let bits = log2_strict_usize(height);
@@ -170,7 +189,7 @@ mod tests {
 
         evals = fold_bivariate::<F, _>(RowMajorMatrix::new(evals, 2), rng.gen());
         for _ in log_blowup..(log_n + log_blowup - 1) {
-            evals = CircleFriFolder::<F>::fold_matrix(RowMajorMatrix::new(evals, 2), rng.gen());
+            evals = CircleFriFolder::<F, EF>::fold_matrix(RowMajorMatrix::new(evals, 2), rng.gen());
         }
         assert_eq!(evals.len(), 1 << log_blowup);
         assert_eq!(

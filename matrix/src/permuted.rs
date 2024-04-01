@@ -18,6 +18,9 @@ impl<Perm: RowPermutation, Inner> PermutedMatrix<Perm, Inner> {
             _phantom: PhantomData,
         }
     }
+    pub fn inner(&self) -> &Inner {
+        &self.inner
+    }
 }
 
 impl<T, Perm: RowPermutation, Inner: Matrix<T>> Matrix<T> for PermutedMatrix<Perm, Inner> {

@@ -65,6 +65,7 @@ where
 
 pub fn verify_challenges<Folder, F, M, Witness>(
     config: &FriConfig<M>,
+    folder: &Folder,
     proof: &FriProof<F, M, Witness>,
     challenges: &FriChallenges<F>,
     reduced_openings: &[[F; 32]],
@@ -80,8 +81,9 @@ where
         &proof.query_proofs,
         reduced_openings
     ) {
-        let folded_eval = verify_query::<Folder, _, _>(
+        let folded_eval = verify_query(
             config,
+            folder,
             &proof.commit_phase_commits,
             index,
             query_proof,
@@ -99,6 +101,7 @@ where
 
 fn verify_query<Folder, F, M>(
     config: &FriConfig<M>,
+    folder: &Folder,
     commit_phase_commits: &[M::Commitment],
     mut index: usize,
     proof: &QueryProof<F, M>,
@@ -119,7 +122,13 @@ where
         &proof.commit_phase_openings,
         betas,
     ) {
-        folded_eval += reduced_openings[log_folded_height + 1];
+        // folded_eval += reduced_openings[log_folded_height + 1];
+        folder.combine_row(
+            &mut folded_eval,
+            reduced_openings[log_folded_height + 1],
+            index,
+            log_folded_height + 1,
+        );
 
         let index_sibling = index ^ 1;
         let index_pair = index >> 1;

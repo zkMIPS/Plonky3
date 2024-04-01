@@ -12,7 +12,7 @@ use p3_field::{
     Field, PackedValue, TwoAdicField,
 };
 use p3_interpolation::interpolate_coset;
-use p3_matrix::bitrev::{BitReversableMatrix, BitReversedMatrixView};
+use p3_matrix::bitrev::BitReversableMatrix;
 use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::{Dimensions, Matrix, MatrixRowSlices, MatrixRows};
 use p3_maybe_rayon::prelude::*;
@@ -72,6 +72,7 @@ pub struct BatchOpening<Val: Field, InputMmcs: Mmcs<Val>> {
 }
 
 pub struct TwoAdicFriFolder;
+
 impl<F: TwoAdicField> FriFolder<F> for TwoAdicFriFolder {
     fn fold_matrix<M: MatrixRows<F>>(m: M, beta: F) -> Vec<F> {
         // We use the fact that
@@ -118,6 +119,13 @@ impl<F: TwoAdicField> FriFolder<F> for TwoAdicFriFolder {
         assert_eq!(log_arity, 1, "can only interpolate two points for now");
         // interpolate and evaluate at beta
         evals[0] + (beta - xs[0]) * (evals[1] - evals[0]) / (xs[1] - xs[0])
+    }
+
+    fn combine_vec(&self, current: &mut [F], new: &[F]) {
+        current.iter_mut().zip_eq(new).for_each(|(c, v)| *c += *v);
+    }
+    fn combine_row(&self, eval: &mut F, new_eval: F, _index: usize, _log_height: usize) {
+        *eval += new_eval;
     }
 }
 
@@ -314,7 +322,7 @@ where
         }
 
         let (fri_proof, query_indices) =
-            prover::prove::<TwoAdicFriFolder, _, _, _>(&self.fri, &reduced_openings, challenger);
+            prover::prove(&self.fri, &TwoAdicFriFolder, &reduced_openings, challenger);
 
         let query_openings = query_indices
             .into_iter()
@@ -420,8 +428,9 @@ where
             .collect::<Result<Vec<_>, InputMmcs::Error>>()
             .map_err(VerificationError::InputMmcsError)?;
 
-        verifier::verify_challenges::<TwoAdicFriFolder, _, _, _>(
+        verifier::verify_challenges(
             &self.fri,
+            &TwoAdicFriFolder,
             &proof.fri_proof,
             &fri_challenges,
             &reduced_openings,

@@ -135,6 +135,7 @@ impl<F: Field, EF: ExtensionField<F>, Inner: MatrixRowSlices<EF>> MatrixRowSlice
 {
     fn row_slice(&self, r: usize) -> &[F] {
         let buf = self.inner.row_slice(r);
+        // TODO this is unsafe and relies on BinomialExtensionField repr(transparent)
         unsafe { slice::from_raw_parts(buf.as_ptr().cast::<F>(), buf.len() * EF::D) }
     }
 }

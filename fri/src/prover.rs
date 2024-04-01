@@ -13,6 +13,7 @@ use crate::{CommitPhaseProofStep, FriConfig, FriFolder, FriProof, QueryProof};
 #[instrument(name = "FRI prover", skip_all)]
 pub fn prove<Folder, F, M, Challenger>(
     config: &FriConfig<M>,
+    folder: &Folder,
     input: &[Option<Vec<F>>; 32],
     challenger: &mut Challenger,
 ) -> (FriProof<F, M, Challenger::Witness>, Vec<usize>)
@@ -24,8 +25,7 @@ where
 {
     let log_max_height = input.iter().rposition(Option::is_some).unwrap();
 
-    let commit_phase_result =
-        commit_phase::<Folder, _, _, _>(config, input, log_max_height, challenger);
+    let commit_phase_result = commit_phase(config, folder, input, log_max_height, challenger);
 
     let pow_witness = challenger.grind(config.proof_of_work_bits);
 
@@ -89,6 +89,7 @@ where
 #[instrument(name = "commit phase", skip_all)]
 fn commit_phase<Folder, F, M, Challenger>(
     config: &FriConfig<M>,
+    folder: &Folder,
     input: &[Option<Vec<F>>; 32],
     log_max_height: usize,
     challenger: &mut Challenger,
@@ -118,7 +119,8 @@ where
         data.push(prover_data);
 
         if let Some(v) = &input[log_folded_height] {
-            current.iter_mut().zip_eq(v).for_each(|(c, v)| *c += *v);
+            // current.iter_mut().zip_eq(v).for_each(|(c, v)| *c += *v);
+            folder.combine_vec(&mut current, v);
         }
     }
 

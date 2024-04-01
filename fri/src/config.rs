@@ -19,6 +19,8 @@ pub trait FriFolder<F> {
     /// Right now this will always be 2 columns wide,
     /// but we may support higher folding arity in the future.
     fn fold_matrix<M: MatrixRows<F>>(m: M, beta: F) -> Vec<F>;
-
     fn fold_row(index: usize, log_height: usize, evals: &[F], beta: F) -> F;
+
+    fn combine_vec(&self, current: &mut [F], new: &[F]);
+    fn combine_row(&self, current: &mut F, new: F, index: usize, log_height: usize);
 }
