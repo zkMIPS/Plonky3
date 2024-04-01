@@ -27,17 +27,26 @@ pub fn poseidon_round_numbers_128<F: PrimeField64>(width: usize, alpha: u64) -> 
             (24, 5) => (8, 22),
             (24, 7) => (8, 21),
             (24, 11) => (8, 21),
-            _ => panic!("The given pair of width and alpha has not been checked"),
+            _ => panic!("The given pair of width and alpha has not been checked for these fields"),
         }
     } else {
         match (width, alpha) {
+            (8, 3) => (8, 41),
+            (8, 5) => (8, 27),
             (8, 7) => (8, 22),
-            (12, 7) => (8, 22),
-            (16, 7) => (8, 22),
             (8, 11) => (8, 17),
+            (8, 9) => (8, 19),
+            (12, 3) => (8, 42),
+            (12, 5) => (8, 27),
+            (12, 7) => (8, 22),
+            (12, 9) => (8, 20),
             (12, 11) => (8, 18),
+            (16, 3) => (8, 42),
+            (16, 5) => (8, 27),
+            (16, 7) => (8, 22),
+            (16, 9) => (8, 20),
             (16, 11) => (8, 18),
-            _ => panic!("The given pair of width and alpha has not been checked"),
+            _ => panic!("The given pair of width and alpha has not been checked for these fields"),
         }
     }
 }
