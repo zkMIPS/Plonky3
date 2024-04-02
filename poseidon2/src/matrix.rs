@@ -49,9 +49,9 @@ where
     let t01123 = t0123.clone() + x[1].clone();
     let t01233 = t0123.clone() + x[3].clone();
     x[0] = t01123.clone() + t01; // 2*x[0] + 3*x[1] + x[2] + x[3]
-    x[1] = t01123 + x[2].clone() + x[2].clone(); // x[0] + 2*x[1] + 3*x[2] + x[3]
+    x[1] = t01123 + x[2].double(); // x[0] + 2*x[1] + 3*x[2] + x[3]
     x[2] = t01233.clone() + t23; // x[0] + x[1] + 2*x[2] + 3*x[3]
-    x[3] = t01233 + x[0].clone() + x[0].clone(); // 3*x[0] + x[1] + x[2] + 2*x[3]
+    x[3] = t01233 + x[0].double(); // 3*x[0] + x[1] + x[2] + 2*x[3]
 }
 
 // The 4x4 MDS matrix used by the Horizon Labs implementation of Poseidon2.
