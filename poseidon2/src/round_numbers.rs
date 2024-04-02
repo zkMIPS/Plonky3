@@ -22,10 +22,12 @@ pub fn poseidon_round_numbers_128<F: PrimeField64>(width: usize, alpha: u64) -> 
             (16, 3) => (8, 20),
             (16, 5) => (8, 14),
             (16, 7) => (8, 13),
+            (16, 9) => (8, 13),
             (16, 11) => (8, 13),
             (24, 3) => (8, 23),
             (24, 5) => (8, 22),
             (24, 7) => (8, 21),
+            (24, 9) => (8, 21),
             (24, 11) => (8, 21),
             _ => panic!("The given pair of width and alpha has not been checked for these fields"),
         }
