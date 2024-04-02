@@ -26,7 +26,7 @@ pub use round_numbers::poseidon_round_numbers_128;
 const SUPPORTED_WIDTHS: [usize; 8] = [2, 3, 4, 8, 12, 16, 20, 24];
 
 /// The Poseidon2 permutation.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Poseidon2<F, MDSLight, Diffusion, const WIDTH: usize, const D: u64> {
     /// The number of external rounds.
     rounds_f: usize,
