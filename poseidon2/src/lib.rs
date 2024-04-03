@@ -10,7 +10,6 @@ extern crate alloc;
 
 mod diffusion;
 mod matrix;
-mod round_constants;
 mod round_numbers;
 use alloc::vec::Vec;
 
@@ -20,7 +19,6 @@ use p3_field::{AbstractField, PrimeField, PrimeField64};
 use p3_symmetric::{CryptographicPermutation, Permutation};
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
-pub use round_constants::*;
 pub use round_numbers::poseidon_round_numbers_128;
 
 const SUPPORTED_WIDTHS: [usize; 8] = [2, 3, 4, 8, 12, 16, 20, 24];
@@ -93,10 +91,10 @@ where
         Self {
             rounds_f,
             external_constants,
-            external_linear_layer: external_linear_layer,
+            external_linear_layer,
             rounds_p,
             internal_constants,
-            internal_linear_layer: internal_linear_layer,
+            internal_linear_layer,
         }
     }
 

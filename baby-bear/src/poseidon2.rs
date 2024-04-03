@@ -170,22 +170,17 @@ mod tests {
         const ROUNDS_P: usize = 13;
 
         // Our Poseidon2 implementation.
-        let poseidon2: Poseidon2<
-            F,
-            Poseidon2ExternalMatrixHL,
-            DiffusionMatrixBabybear,
-            WIDTH,
-            D,
-        > = Poseidon2::new(
-            ROUNDS_F,
-            HL_BABYBEAR_16_EXTERNAL_ROUND_CONSTANTS
-                .map(to_babybear_array)
-                .to_vec(),
-            Poseidon2ExternalMatrixHL,
-            ROUNDS_P,
-            to_babybear_array(HL_BABYBEAR_16_INTERNAL_ROUND_CONSTANTS).to_vec(),
-            DiffusionMatrixBabybear,
-        );
+        let poseidon2: Poseidon2<F, Poseidon2ExternalMatrixHL, DiffusionMatrixBabybear, WIDTH, D> =
+            Poseidon2::new(
+                ROUNDS_F,
+                HL_BABYBEAR_16_EXTERNAL_ROUND_CONSTANTS
+                    .map(to_babybear_array)
+                    .to_vec(),
+                Poseidon2ExternalMatrixHL,
+                ROUNDS_P,
+                to_babybear_array(HL_BABYBEAR_16_INTERNAL_ROUND_CONSTANTS).to_vec(),
+                DiffusionMatrixBabybear,
+            );
 
         poseidon2.permute_mut(input);
     }

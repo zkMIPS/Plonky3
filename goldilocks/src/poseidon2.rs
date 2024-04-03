@@ -236,6 +236,7 @@ pub const HL_GOLDILOCKS_8_INTERNAL_ROUND_CONSTANTS: [u64; 22] = [
 #[cfg(test)]
 mod tests {
     use core::array;
+
     use p3_poseidon2::{Poseidon2, Poseidon2ExternalMatrixHL};
 
     use super::*;
