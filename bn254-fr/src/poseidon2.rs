@@ -77,7 +77,7 @@ mod tests {
         let poseidon2_ref = Poseidon2Ref::new(&POSEIDON2_BN256_PARAMS);
 
         // Copy over round constants from zkhash.
-        let round_constants: Vec<[F; WIDTH]> = RC3
+        let mut round_constants: Vec<[F; WIDTH]> = RC3
             .iter()
             .map(|vec| {
                 vec.iter()
@@ -89,23 +89,13 @@ mod tests {
             })
             .collect();
 
-        let external_round_constants: Vec<[F; WIDTH]> = round_constants
-            .iter()
-            .enumerate()
-            .filter_map(|(i, val)| {
-                if ((ROUNDS_F / 2)..((ROUNDS_F / 2) + ROUNDS_P)).contains(&i) {
-                    None
-                } else {
-                    Some(*val)
-                }
-            })
-            .collect();
-        let internal_round_constants: Vec<F> = round_constants
-            .iter()
-            .skip(ROUNDS_F / 2)
-            .take(ROUNDS_P)
+        let internal_start = ROUNDS_F / 2;
+        let internal_end = (ROUNDS_F / 2) + ROUNDS_P;
+        let internal_round_constants = round_constants
+            .drain(internal_start..internal_end)
             .map(|vec| vec[0])
-            .collect();
+            .collect::<Vec<_>>();
+        let external_round_constants = round_constants;
 
         // Our Poseidon2 implementation.
         let poseidon2: Poseidon2<

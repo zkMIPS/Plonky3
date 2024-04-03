@@ -76,31 +76,27 @@ where
     /// Create a new Poseidon2 configuration with 128 bit security and random rounds constants.
     pub fn new_from_rng_test<R: Rng>(
         rounds_f: usize,
-        external_layer: MDSLight,
+        external_linear_layer: MDSLight,
         rounds_p: usize,
-        internal_layer: Diffusion,
+        internal_linear_layer: Diffusion,
         rng: &mut R,
     ) -> Self
     where
-        Standard: Distribution<F>,
+        Standard: Distribution<F> + Distribution<[F; WIDTH]>,
     {
-        let mut external_constants = Vec::new();
-        for _ in 0..rounds_f {
-            external_constants.push(rng.gen::<[F; WIDTH]>());
-        }
-
-        let mut internal_constants = Vec::new();
-        for _ in 0..rounds_p {
-            internal_constants.push(rng.gen::<F>());
-        }
+        let external_constants = rng
+            .sample_iter(Standard)
+            .take(rounds_f)
+            .collect::<Vec<[F; WIDTH]>>();
+        let internal_constants = rng.sample_iter(Standard).take(rounds_p).collect::<Vec<F>>();
 
         Self {
             rounds_f,
             external_constants,
-            external_linear_layer: external_layer,
+            external_linear_layer: external_linear_layer,
             rounds_p,
             internal_constants,
-            internal_linear_layer: internal_layer,
+            internal_linear_layer: internal_linear_layer,
         }
     }
 
