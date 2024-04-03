@@ -1,4 +1,4 @@
 mod packing;
-mod poseidon2_aarch64_neon;
+mod poseidon2;
 
 pub use packing::*;
