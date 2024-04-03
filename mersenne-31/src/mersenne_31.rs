@@ -412,7 +412,7 @@ fn from_u62(input: u64) -> Mersenne31 {
     Mersenne31::new(input_lo) + Mersenne31::new(input_high)
 }
 
-/// Convert a constant u32 array into a constant Merseenne31 array.
+/// Convert a constant u32 array into a constant Mersenne31 array.
 #[inline]
 #[must_use]
 pub(crate) const fn to_mersenne31_array<const N: usize>(input: [u32; N]) -> [Mersenne31; N] {
@@ -422,7 +422,7 @@ pub(crate) const fn to_mersenne31_array<const N: usize>(input: [u32; N]) -> [Mer
         if i == N {
             break;
         }
-        output[i].value = input[i];
+        output[i].value = input[i] % P;
         i += 1;
     }
     output

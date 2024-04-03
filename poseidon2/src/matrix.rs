@@ -48,10 +48,11 @@ where
     let t0123 = t01.clone() + t23.clone();
     let t01123 = t0123.clone() + x[1].clone();
     let t01233 = t0123.clone() + x[3].clone();
-    x[0] = t01123.clone() + t01; // 2*x[0] + 3*x[1] + x[2] + x[3]
-    x[1] = t01123 + x[2].double(); // x[0] + 2*x[1] + 3*x[2] + x[3]
-    x[2] = t01233.clone() + t23; // x[0] + x[1] + 2*x[2] + 3*x[3]
-    x[3] = t01233 + x[0].double(); // 3*x[0] + x[1] + x[2] + 2*x[3]
+    // The order here is important. Need to overwrite x[0] and x[2] after x[1] and x[3].
+    x[3] = t01233.clone() + x[0].double(); // 3*x[0] + x[1] + x[2] + 2*x[3]
+    x[1] = t01123.clone() + x[2].double(); // x[0] + 2*x[1] + 3*x[2] + x[3]
+    x[0] = t01123 + t01; // 2*x[0] + 3*x[1] + x[2] + x[3]
+    x[2] = t01233 + t23; // x[0] + x[1] + 2*x[2] + 3*x[3]
 }
 
 // The 4x4 MDS matrix used by the Horizon Labs implementation of Poseidon2.
@@ -114,14 +115,14 @@ pub fn light_mds_permutation<
             // In Appendix B's terminology, this replaces each x_i with x_i'.
             for i in (0..WIDTH).step_by(4) {
                 // Would be nice to find a better way to do this.
-                let state_4 = [
+                let mut state_4 = [
                     state[i].clone(),
                     state[i + 1].clone(),
                     state[i + 2].clone(),
                     state[i + 3].clone(),
                 ];
-                let updated_state = mdsmat.permute(state_4);
-                state[i..i + 4].clone_from_slice(&updated_state);
+                mdsmat.permute_mut(&mut state_4);
+                state[i..i + 4].clone_from_slice(&state_4);
             }
 
             // Now, we apply the outer circulant matrix (to compute the y_i values).

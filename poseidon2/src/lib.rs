@@ -181,8 +181,8 @@ where
         self.external_linear_layer.permute_mut(state);
 
         // The first half of the external rounds.
-        let rounds_f_beginning = self.rounds_f / 2;
-        for r in 0..rounds_f_beginning {
+        let rounds_f_half = self.rounds_f / 2;
+        for r in 0..rounds_f_half {
             self.add_rc(state, &self.external_constants[r]);
             self.sbox(state);
             self.external_linear_layer.permute_mut(state);
@@ -196,7 +196,7 @@ where
         }
 
         // The second half of the external rounds.
-        for r in rounds_f_beginning..self.rounds_f {
+        for r in rounds_f_half..self.rounds_f {
             self.add_rc(state, &self.external_constants[r]);
             self.sbox(state);
             self.external_linear_layer.permute_mut(state);

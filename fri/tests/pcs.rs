@@ -34,7 +34,6 @@ fn make_test_fri_pcs(log_degrees_by_round: &[&[usize]]) {
     let num_rounds = log_degrees_by_round.len();
     let mut rng = thread_rng();
 
-    
     let perm = Perm::new_from_rng_128(
         Poseidon2ExternalMatrixGeneral,
         DiffusionMatrixBabybear,
