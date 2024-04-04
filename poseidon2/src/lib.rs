@@ -19,7 +19,7 @@ use p3_field::{AbstractField, PrimeField, PrimeField64};
 use p3_symmetric::{CryptographicPermutation, Permutation};
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
-pub use round_numbers::poseidon_round_numbers_128;
+pub use round_numbers::poseidon2_round_numbers_128;
 
 const SUPPORTED_WIDTHS: [usize; 8] = [2, 3, 4, 8, 12, 16, 20, 24];
 
@@ -140,7 +140,7 @@ where
     where
         Standard: Distribution<F>,
     {
-        let (rounds_f, rounds_p) = poseidon_round_numbers_128::<F>(WIDTH, D);
+        let (rounds_f, rounds_p) = poseidon2_round_numbers_128::<F>(WIDTH, D);
         let mut external_constants = Vec::new();
         for _ in 0..rounds_f {
             external_constants.push(rng.gen::<[F; WIDTH]>());
