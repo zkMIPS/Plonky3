@@ -138,26 +138,23 @@ where
         rng: &mut R,
     ) -> Self
     where
-        Standard: Distribution<F>,
+        Standard: Distribution<F> + Distribution<[F; WIDTH]>,
     {
         let (rounds_f, rounds_p) = poseidon2_round_numbers_128::<F>(WIDTH, D);
-        let mut external_constants = Vec::new();
-        for _ in 0..rounds_f {
-            external_constants.push(rng.gen::<[F; WIDTH]>());
-        }
 
-        let mut internal_constants = Vec::new();
-        for _ in 0..rounds_p {
-            internal_constants.push(rng.gen::<F>());
-        }
+        let external_constants = rng
+            .sample_iter(Standard)
+            .take(rounds_f)
+            .collect::<Vec<[F; WIDTH]>>();
+        let internal_constants = rng.sample_iter(Standard).take(rounds_p).collect::<Vec<F>>();
 
         Self {
             rounds_f,
             external_constants,
-            external_linear_layer
+            external_linear_layer,
             rounds_p,
             internal_constants,
-            internal_linear_layer
+            internal_linear_layer,
         }
     }
 }
@@ -167,7 +164,7 @@ impl<AF, MDSLight, Diffusion, const WIDTH: usize, const D: u64> Permutation<[AF;
 where
     AF: AbstractField,
     AF::F: PrimeField,
-    MDSLight: MDSLightPermutation<AF, WIDTH>,
+    MDSLight: MdsLightPermutation<AF, WIDTH>,
     Diffusion: DiffusionPermutation<AF, WIDTH>,
 {
     fn permute_mut(&self, state: &mut [AF; WIDTH]) {
@@ -203,7 +200,7 @@ impl<AF, MDSLight, Diffusion, const WIDTH: usize, const D: u64>
 where
     AF: AbstractField,
     AF::F: PrimeField,
-    MDSLight: MDSLightPermutation<AF, WIDTH>,
+    MDSLight: MdsLightPermutation<AF, WIDTH>,
     Diffusion: DiffusionPermutation<AF, WIDTH>,
 {
 }

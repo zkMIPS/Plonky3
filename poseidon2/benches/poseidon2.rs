@@ -7,7 +7,7 @@ use p3_field::{PrimeField, PrimeField64};
 use p3_goldilocks::{DiffusionMatrixGoldilocks, Goldilocks};
 use p3_mersenne_31::{DiffusionMatrixMersenne31, Mersenne31};
 use p3_poseidon2::{
-    DiffusionPermutation, MDSLightPermutation, Poseidon2, Poseidon2ExternalMatrixGeneral,
+    DiffusionPermutation, MdsLightPermutation, Poseidon2, Poseidon2ExternalMatrixGeneral,
 };
 use p3_symmetric::Permutation;
 use rand::distributions::{Distribution, Standard};
@@ -38,21 +38,21 @@ fn bench_poseidon2(c: &mut Criterion) {
 // For 64 bit fields we use poseidon2_p64 which chooses the parameters rounds_f, rounds_p as the minimal values
 // to achieve 128-bit soundness.
 
-fn poseidon2<F, MDSLight, Diffusion, const WIDTH: usize, const D: u64>(
+fn poseidon2<F, MdsLight, Diffusion, const WIDTH: usize, const D: u64>(
     c: &mut Criterion,
     rounds_f: usize,
     rounds_p: usize,
 ) where
     F: PrimeField,
     Standard: Distribution<F>,
-    MDSLight: MDSLightPermutation<F, WIDTH> + Default,
+    MdsLight: MdsLightPermutation<F, WIDTH> + Default,
     Diffusion: DiffusionPermutation<F, WIDTH> + Default,
 {
     let mut rng = thread_rng();
     let internal_layer = Diffusion::default();
-    let external_layer = MDSLight::default();
+    let external_layer = MdsLight::default();
 
-    let poseidon = Poseidon2::<F, MDSLight, Diffusion, WIDTH, D>::new_from_rng_test(
+    let poseidon = Poseidon2::<F, MdsLight, Diffusion, WIDTH, D>::new_from_rng_test(
         rounds_f,
         external_layer,
         rounds_p,
@@ -71,47 +71,25 @@ fn poseidon2<F, MDSLight, Diffusion, const WIDTH: usize, const D: u64>(
     c.bench_with_input(id, &input, |b, &input| b.iter(|| poseidon.permute(input)));
 }
 
-fn poseidon2_p64<F, MDSLight, Diffusion, const WIDTH: usize, const D: u64>(c: &mut Criterion)
+// For fields implementing PrimeField64 we should benchmark using the optimal round constants.
+fn poseidon2_p64<F, MdsLight, Diffusion, const WIDTH: usize, const D: u64>(c: &mut Criterion)
 where
     F: PrimeField64,
     Standard: Distribution<F>,
-    MDSLight: MDSLightPermutation<F, WIDTH> + Default,
+    MdsLight: MdsLightPermutation<F, WIDTH> + Default,
     Diffusion: DiffusionPermutation<F, WIDTH> + Default,
 {
     let mut rng = thread_rng();
-    let internal_layer = Diffusion::default();
-    let external_layer = MDSLight::default();
+    let internal_linear_layer = Diffusion::default();
+    let external_linear_layer = MdsLight::default();
 
-    let poseidon = Poseidon2::<F, MDSLight, Diffusion, WIDTH, D>::new_from_rng_128(
-        external_layer,
-        internal_layer,
+    let poseidon = Poseidon2::<F, MdsLight, Diffusion, WIDTH, D>::new_from_rng_128(
+        external_linear_layer,
+        internal_linear_layer,
         &mut rng,
     );
     let input = [F::zero(); WIDTH];
-    let name = format!(
-        "poseidon2::<{}, {}, {}, {}>",
-        type_name::<F>(),
-        D,
-        rounds_f,
-        rounds_p
-    );
-    let id = BenchmarkId::new(name, WIDTH);
-    c.bench_with_input(id, &input, |b, &input| b.iter(|| poseidon.permute(input)));
-}
-
-// For fields implementing PrimeField64 we should benchmark using the optimal round constants.
-fn poseidon2_p64<F, Diffusion, const WIDTH: usize, const D: u64>(c: &mut Criterion)
-where
-    F: PrimeField64,
-    Standard: Distribution<F>,
-    Diffusion: DiffusionPermutation<F, WIDTH> + Default,
-{
-    let mut rng = thread_rng();
-    let internal_mds = Diffusion::default();
-
-    let poseidon = Poseidon2::<F, Diffusion, WIDTH, D>::new_from_rng_128(internal_mds, &mut rng);
-    let input = [F::zero(); WIDTH];
-    let name = format!("poseidon2::<{}, {}>", type_name::<F>(), D);
+    let name = format!("poseidon2::<{}, {}>", type_name::<F>(), D,);
     let id = BenchmarkId::new(name, WIDTH);
     c.bench_with_input(id, &input, |b, &input| b.iter(|| poseidon.permute(input)));
 }
