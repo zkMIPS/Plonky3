@@ -52,8 +52,6 @@ fn poseidon2<F, MDSLight, Diffusion, const WIDTH: usize, const D: u64>(
     let internal_layer = Diffusion::default();
     let external_layer = MDSLight::default();
 
-    // TODO: Should be calculated for the particular field, width and ALPHA.
-
     let poseidon = Poseidon2::<F, MDSLight, Diffusion, WIDTH, D>::new_from_rng_test(
         rounds_f,
         external_layer,
@@ -89,6 +87,29 @@ where
         internal_layer,
         &mut rng,
     );
+    let input = [F::zero(); WIDTH];
+    let name = format!(
+        "poseidon2::<{}, {}, {}, {}>",
+        type_name::<F>(),
+        D,
+        rounds_f,
+        rounds_p
+    );
+    let id = BenchmarkId::new(name, WIDTH);
+    c.bench_with_input(id, &input, |b, &input| b.iter(|| poseidon.permute(input)));
+}
+
+// For fields implementing PrimeField64 we should benchmark using the optimal round constants.
+fn poseidon2_p64<F, Diffusion, const WIDTH: usize, const D: u64>(c: &mut Criterion)
+where
+    F: PrimeField64,
+    Standard: Distribution<F>,
+    Diffusion: DiffusionPermutation<F, WIDTH> + Default,
+{
+    let mut rng = thread_rng();
+    let internal_mds = Diffusion::default();
+
+    let poseidon = Poseidon2::<F, Diffusion, WIDTH, D>::new_from_rng_128(internal_mds, &mut rng);
     let input = [F::zero(); WIDTH];
     let name = format!("poseidon2::<{}, {}>", type_name::<F>(), D);
     let id = BenchmarkId::new(name, WIDTH);

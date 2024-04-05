@@ -4,9 +4,9 @@ use p3_symmetric::Permutation;
 
 extern crate alloc;
 
-// For the external layers we use a matrix of the form circ(2M_4, M_4, ..., M_4)
-// Where M_4 is a 4 x 4 MDS matrix. This leads to a permutation which has slightly weaker properties to MDS
-pub trait MDSLightPermutation<T: Clone, const WIDTH: usize>: Permutation<[T; WIDTH]> {}
+/// For the external layers we use a matrix of the form circ(2M_4, M_4, ..., M_4)
+/// Where M_4 is a 4 x 4 MDS matrix. This leads to a permutation which has slightly weaker properties to MDS
+pub trait MdsLightPermutation<T: Clone, const WIDTH: usize>: Permutation<[T; WIDTH]> {}
 
 // Multiply a 4-element vector x by
 // [ 5 7 1 3 ]
@@ -15,7 +15,7 @@ pub trait MDSLightPermutation<T: Clone, const WIDTH: usize>: Permutation<[T; WID
 // [ 1 1 4 6 ].
 // This uses the formula from the start of Appendix B in the Poseidon2 paper, with multiplications unrolled into additions.
 // It is also the matrix used by the Horizon Labs implementation.
-fn apply_hl_mat_4<AF>(x: &mut [AF; 4])
+fn apply_hl_mat4<AF>(x: &mut [AF; 4])
 where
     AF: AbstractField,
 {
@@ -39,7 +39,7 @@ where
 // [ 1 1 2 3 ]
 // [ 3 1 1 2 ].
 // This is more efficient than the previous matrix.
-fn apply_mat_4<AF>(x: &mut [AF; 4])
+fn apply_mat4<AF>(x: &mut [AF; 4])
 where
     AF: AbstractField,
 {
@@ -67,7 +67,7 @@ impl<AF: AbstractField> Permutation<[AF; 4]> for HLMDSMat4 {
     }
 
     fn permute_mut(&self, input: &mut [AF; 4]) {
-        apply_hl_mat_4(input)
+        apply_hl_mat4(input)
     }
 }
 impl<AF: AbstractField> MdsPermutation<AF, 4> for HLMDSMat4 {}
@@ -83,16 +83,13 @@ impl<AF: AbstractField> Permutation<[AF; 4]> for MDSMat4 {
     }
 
     fn permute_mut(&self, input: &mut [AF; 4]) {
-        apply_mat_4(input)
+        apply_mat4(input)
     }
 }
 impl<AF: AbstractField> MdsPermutation<AF, 4> for MDSMat4 {}
 
-pub fn light_mds_permutation<
-    AF: AbstractField,
-    MdsPerm4: MdsPermutation<AF, 4>,
-    const WIDTH: usize,
->(
+
+fn mds_light_permutation<AF: AbstractField, MdsPerm4: MdsPermutation<AF, 4>, const WIDTH: usize>(
     state: &mut [AF; WIDTH],
     mdsmat: MdsPerm4,
 ) {
@@ -149,15 +146,20 @@ pub fn light_mds_permutation<
 }
 
 #[derive(Default, Clone)]
+
 pub struct Poseidon2ExternalMatrixGeneral;
 
 impl<AF, const WIDTH: usize> Permutation<[AF; WIDTH]> for Poseidon2ExternalMatrixGeneral
+
+pub struct Poseidon2ExternalMatrixHL;
+
+impl<AF, const WIDTH: usize> Permutation<[AF; WIDTH]> for Poseidon2ExternalMatrixHL
 where
     AF: AbstractField,
     AF::F: PrimeField,
 {
     fn permute_mut(&self, state: &mut [AF; WIDTH]) {
-        light_mds_permutation::<AF, MDSMat4, WIDTH>(state, MDSMat4)
+        mds_light_permutation::<AF, HLMDSMat4, WIDTH>(state, HLMDSMat4)
     }
 }
 
@@ -177,7 +179,7 @@ where
     AF::F: PrimeField,
 {
     fn permute_mut(&self, state: &mut [AF; WIDTH]) {
-        light_mds_permutation::<AF, HLMDSMat4, WIDTH>(state, HLMDSMat4)
+        mds_light_permutation::<AF, HLMDSMat4, WIDTH>(state, HLMDSMat4)
     }
 }
 

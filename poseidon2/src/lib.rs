@@ -133,8 +133,8 @@ where
 {
     /// Create a new Poseidon2 configuration with 128 bit security and random rounds constants.
     pub fn new_from_rng_128<R: Rng>(
-        external_layer: MDSLight,
-        internal_layer: Diffusion,
+        external_linear_layer: MDSLight,
+        internal_linear_layer: Diffusion,
         rng: &mut R,
     ) -> Self
     where
@@ -154,10 +154,10 @@ where
         Self {
             rounds_f,
             external_constants,
-            external_linear_layer: external_layer,
+            external_linear_layer
             rounds_p,
             internal_constants,
-            internal_linear_layer: internal_layer,
+            internal_linear_layer
         }
     }
 }
