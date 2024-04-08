@@ -23,8 +23,8 @@ where
     let t1 = x[2].clone() + x[3].clone();
     let t2 = x[1].clone() + x[1].clone() + t1.clone();
     let t3 = x[3].clone() + x[3].clone() + t0.clone();
-    let t4 = t1.clone() + t1.clone() + t1.clone() + t1 + t3.clone();
-    let t5 = t0.clone() + t0.clone() + t0.clone() + t0 + t2.clone();
+    let t4 = t1.double().double() + t3.clone();
+    let t5 = t0.double().double() + t2.clone();
     let t6 = t3 + t5.clone();
     let t7 = t2 + t4.clone();
     x[0] = t6;
