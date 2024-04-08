@@ -181,7 +181,6 @@ mod tests {
                 to_babybear_array(HL_BABYBEAR_16_INTERNAL_ROUND_CONSTANTS).to_vec(),
                 DiffusionMatrixBabybear,
             );
-
         poseidon2.permute_mut(input);
     }
 

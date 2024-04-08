@@ -25,7 +25,7 @@ const SUPPORTED_WIDTHS: [usize; 8] = [2, 3, 4, 8, 12, 16, 20, 24];
 
 /// The Poseidon2 permutation.
 #[derive(Clone, Debug)]
-pub struct Poseidon2<F, MDSLight, Diffusion, const WIDTH: usize, const D: u64> {
+pub struct Poseidon2<F, MdsLight, Diffusion, const WIDTH: usize, const D: u64> {
     /// The number of external rounds.
     rounds_f: usize,
 
@@ -34,7 +34,7 @@ pub struct Poseidon2<F, MDSLight, Diffusion, const WIDTH: usize, const D: u64> {
 
     /// The linear layer used in External Rounds. Should be either MDS or a
     /// circulant matrix based off an MDS matrix of size 4.
-    external_linear_layer: MDSLight,
+    external_linear_layer: MdsLight,
 
     /// The number of internal rounds.
     rounds_p: usize,
@@ -46,8 +46,8 @@ pub struct Poseidon2<F, MDSLight, Diffusion, const WIDTH: usize, const D: u64> {
     internal_linear_layer: Diffusion,
 }
 
-impl<F, MDSLight, Diffusion, const WIDTH: usize, const D: u64>
-    Poseidon2<F, MDSLight, Diffusion, WIDTH, D>
+impl<F, MdsLight, Diffusion, const WIDTH: usize, const D: u64>
+    Poseidon2<F, MdsLight, Diffusion, WIDTH, D>
 where
     F: PrimeField,
 {
@@ -55,7 +55,7 @@ where
     pub fn new(
         rounds_f: usize,
         external_constants: Vec<[F; WIDTH]>,
-        external_linear_layer: MDSLight,
+        external_linear_layer: MdsLight,
         rounds_p: usize,
         internal_constants: Vec<F>,
         internal_linear_layer: Diffusion,
@@ -72,9 +72,9 @@ where
     }
 
     /// Create a new Poseidon2 configuration with 128 bit security and random rounds constants.
-    pub fn new_from_rng_test<R: Rng>(
+    pub fn new_from_rng<R: Rng>(
         rounds_f: usize,
-        external_linear_layer: MDSLight,
+        external_linear_layer: MdsLight,
         rounds_p: usize,
         internal_linear_layer: Diffusion,
         rng: &mut R,
@@ -126,14 +126,14 @@ where
     }
 }
 
-impl<F, MDSLight, Diffusion, const WIDTH: usize, const D: u64>
-    Poseidon2<F, MDSLight, Diffusion, WIDTH, D>
+impl<F, MdsLight, Diffusion, const WIDTH: usize, const D: u64>
+    Poseidon2<F, MdsLight, Diffusion, WIDTH, D>
 where
     F: PrimeField64,
 {
     /// Create a new Poseidon2 configuration with 128 bit security and random rounds constants.
     pub fn new_from_rng_128<R: Rng>(
-        external_linear_layer: MDSLight,
+        external_linear_layer: MdsLight,
         internal_linear_layer: Diffusion,
         rng: &mut R,
     ) -> Self
@@ -159,12 +159,12 @@ where
     }
 }
 
-impl<AF, MDSLight, Diffusion, const WIDTH: usize, const D: u64> Permutation<[AF; WIDTH]>
-    for Poseidon2<AF::F, MDSLight, Diffusion, WIDTH, D>
+impl<AF, MdsLight, Diffusion, const WIDTH: usize, const D: u64> Permutation<[AF; WIDTH]>
+    for Poseidon2<AF::F, MdsLight, Diffusion, WIDTH, D>
 where
     AF: AbstractField,
     AF::F: PrimeField,
-    MDSLight: MdsLightPermutation<AF, WIDTH>,
+    MdsLight: MdsLightPermutation<AF, WIDTH>,
     Diffusion: DiffusionPermutation<AF, WIDTH>,
 {
     fn permute_mut(&self, state: &mut [AF; WIDTH]) {
@@ -195,12 +195,12 @@ where
     }
 }
 
-impl<AF, MDSLight, Diffusion, const WIDTH: usize, const D: u64>
-    CryptographicPermutation<[AF; WIDTH]> for Poseidon2<AF::F, MDSLight, Diffusion, WIDTH, D>
+impl<AF, MdsLight, Diffusion, const WIDTH: usize, const D: u64>
+    CryptographicPermutation<[AF; WIDTH]> for Poseidon2<AF::F, MdsLight, Diffusion, WIDTH, D>
 where
     AF: AbstractField,
     AF::F: PrimeField,
-    MDSLight: MdsLightPermutation<AF, WIDTH>,
+    MdsLight: MdsLightPermutation<AF, WIDTH>,
     Diffusion: DiffusionPermutation<AF, WIDTH>,
 {
 }

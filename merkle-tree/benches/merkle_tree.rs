@@ -31,7 +31,7 @@ fn bench_merkle_trees(criterion: &mut Criterion) {
 fn bench_bb_poseidon2(criterion: &mut Criterion) {
     type F = BabyBear;
 
-    type Perm = Poseidon2<F, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabybear, 16, 7>;
+    type Perm = Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabybear, 16, 7>;
     let perm = Perm::new_from_rng_128(
         Poseidon2ExternalMatrixGeneral,
         DiffusionMatrixBabybear,

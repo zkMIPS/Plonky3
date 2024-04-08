@@ -37,7 +37,6 @@ fn bench_poseidon2(c: &mut Criterion) {
 
 // For 64 bit fields we use poseidon2_p64 which chooses the parameters rounds_f, rounds_p as the minimal values
 // to achieve 128-bit soundness.
-
 fn poseidon2<F, MdsLight, Diffusion, const WIDTH: usize, const D: u64>(
     c: &mut Criterion,
     rounds_f: usize,
@@ -49,14 +48,14 @@ fn poseidon2<F, MdsLight, Diffusion, const WIDTH: usize, const D: u64>(
     Diffusion: DiffusionPermutation<F, WIDTH> + Default,
 {
     let mut rng = thread_rng();
-    let internal_layer = Diffusion::default();
-    let external_layer = MdsLight::default();
+    let external_linear_layer = MdsLight::default();
+    let internal_linear_layer = Diffusion::default();
 
-    let poseidon = Poseidon2::<F, MdsLight, Diffusion, WIDTH, D>::new_from_rng_test(
+    let poseidon = Poseidon2::<F, MdsLight, Diffusion, WIDTH, D>::new_from_rng(
         rounds_f,
-        external_layer,
+        external_linear_layer,
         rounds_p,
-        internal_layer,
+        internal_linear_layer,
         &mut rng,
     );
     let input = [F::zero(); WIDTH];
@@ -80,8 +79,8 @@ where
     Diffusion: DiffusionPermutation<F, WIDTH> + Default,
 {
     let mut rng = thread_rng();
-    let internal_linear_layer = Diffusion::default();
     let external_linear_layer = MdsLight::default();
+    let internal_linear_layer = Diffusion::default();
 
     let poseidon = Poseidon2::<F, MdsLight, Diffusion, WIDTH, D>::new_from_rng_128(
         external_linear_layer,
