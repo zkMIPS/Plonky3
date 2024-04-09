@@ -35,7 +35,7 @@ fn bench_poseidon2(c: &mut Criterion) {
     poseidon2::<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, 3, 5>(c, 8, 22);
 }
 
-// For 64 bit fields we use poseidon2_p64 which chooses the parameters rounds_f, rounds_p as the minimal values
+// For 64 bit fields use poseidon2_p64 which chooses the parameters rounds_f, rounds_p as the minimal values
 // to achieve 128-bit soundness.
 fn poseidon2<F, MdsLight, Diffusion, const WIDTH: usize, const D: u64>(
     c: &mut Criterion,
@@ -88,7 +88,7 @@ where
         &mut rng,
     );
     let input = [F::zero(); WIDTH];
-    let name = format!("poseidon2::<{}, {}>", type_name::<F>(), D,);
+    let name = format!("poseidon2::<{}, {}>", type_name::<F>(), D);
     let id = BenchmarkId::new(name, WIDTH);
     c.bench_with_input(id, &input, |b, &input| b.iter(|| poseidon.permute(input)));
 }

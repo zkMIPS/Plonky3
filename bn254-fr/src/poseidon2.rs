@@ -94,7 +94,6 @@ mod tests {
             .map(|vec| vec[0])
             .collect::<Vec<_>>();
         let external_round_constants = round_constants;
-
         // Our Poseidon2 implementation.
         let poseidon2: Poseidon2<
             Bn254Fr,

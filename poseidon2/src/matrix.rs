@@ -122,7 +122,6 @@ fn mds_light_permutation<AF: AbstractField, MdsPerm4: MdsPermutation<AF, 4>, con
             }
 
             // Now, we apply the outer circulant matrix (to compute the y_i values).
-
             // We first precompute the four sums of every four elements.
             let sums: [AF; 4] = core::array::from_fn(|k| {
                 (0..WIDTH)
