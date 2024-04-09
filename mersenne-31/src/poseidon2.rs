@@ -1,5 +1,5 @@
-use p3_field::{AbstractField, PrimeField32};
-use p3_poseidon2::{matmul_internal, DiffusionPermutation};
+use p3_field::{AbstractField, Field, PrimeField32};
+use p3_poseidon2::DiffusionPermutation;
 use p3_symmetric::Permutation;
 
 use crate::{to_mersenne31_array, Mersenne31};
@@ -30,48 +30,90 @@ const MATRIX_DIAG_16_MERSENNE31_U32: [u32; 16] = [
     65536,
 ];
 
-const MATRIX_DIAG_16_MERSENNE31: [Mersenne31; 16] =
+pub const MATRIX_DIAG_16_MERSENNE31: [Mersenne31; 16] =
     to_mersenne31_array(MATRIX_DIAG_16_MERSENNE31_U32);
 
-// We should instead be doing some sort of delayed reduction strategy using the shifts.
-// const MATRIX_DIAG_16_MONTY_SHIFTS: [i32; 16] = [-64, 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 14, 15, 16];
-// // Note that the first entry of this constant should never be accessed.
-
-// // Need to seperate Vector and Scalar code first to do this properly though.
-
-// fn matmul_internal_shift<const WIDTH: usize>(
-//     state: &mut [Mersenne31; WIDTH],
-//     mat_internal_diag_shifts: [i32; WIDTH],
-// ) {
-//     let sum = state.iter().cloned().sum();
-//     state[0] = sum - state[0].double();
-//     for i in 1..WIDTH {
-//         state[i] = state[i].mul_2exp_u64(mat_internal_diag_shifts[i] as u64);
-//         state[i] += sum.clone();
-//     }
-// }
+// We make use of the fact that most entries are a power of 2.
+// Note that this array is 1 element shorter than MATRIX_DIAG_16_MERSENNE31 as we do not include the first element.
+const MATRIX_DIAG_16_MONTY_SHIFTS: [i32; 15] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 14, 15, 16];
 
 #[derive(Debug, Clone, Default)]
 pub struct DiffusionMatrixMersenne31;
 
-impl<AF: AbstractField<F = Mersenne31>> Permutation<[AF; 16]> for DiffusionMatrixMersenne31 {
-    fn permute_mut(&self, state: &mut [AF; 16]) {
-        matmul_internal::<Mersenne31, AF, 16>(state, MATRIX_DIAG_16_MERSENNE31);
+impl Permutation<[Mersenne31; 16]> for DiffusionMatrixMersenne31 {
+    fn permute_mut(&self, state: &mut [Mersenne31; 16]) {
+        let sum: Mersenne31 = state.iter().cloned().sum();
+        state[0] = sum - state[0].double();
+        for i in 1..16 {
+            state[i] = state[i].mul_2exp_u64(MATRIX_DIAG_16_MONTY_SHIFTS[i - 1] as u64);
+            state[i] += sum;
+        }
     }
 }
 
-impl<AF: AbstractField<F = Mersenne31>> DiffusionPermutation<AF, 16> for DiffusionMatrixMersenne31 {}
+impl DiffusionPermutation<Mersenne31, 16> for DiffusionMatrixMersenne31 {}
 
 #[cfg(test)]
 mod tests {
     use core::array;
 
-    use p3_field::AbstractField;
     use p3_poseidon2::{Poseidon2, Poseidon2ExternalMatrixGeneral};
 
     use super::*;
 
     type F = Mersenne31;
+
+    // Generate some fixed random constants using Sage.
+    // These generated using:
+    // set_random_seed(246810)
+    // print([vector([ZZ.random_element(2**31) for _ in range(16)]) for _ in range(8)])
+    // print(vector([ZZ.random_element(2**31) for _ in range(14)]))
+    const EXTRNAL_POSEIDON2_CONSTANTS: [[u32; 16]; 8] = [
+        [
+            1777708182, 1721401758, 2112139575, 970766477, 1003159146, 2109481055, 1591645666,
+            1253081731, 147790673, 1795993607, 418185859, 1354578103, 1652934702, 1108743982,
+            1435244566, 1543814404,
+        ],
+        [
+            654930200, 351316337, 1963308868, 38861083, 879582739, 2132987718, 1163315387,
+            1362831467, 654205465, 1015011465, 1366066774, 1705258057, 1563940060, 1724600887,
+            917326561, 638966780,
+        ],
+        [
+            3384696, 1302649031, 2108321185, 457987989, 467145221, 2036332892, 719635900,
+            618708116, 2116382241, 601241247, 700313800, 1175204338, 1430530974, 396015992,
+            215098263, 960210005,
+        ],
+        [
+            1078243556, 737500799, 157307924, 1991287991, 296086783, 86954821, 1631858947,
+            1813358481, 2017811068, 1864361777, 1809775679, 584697386, 1396011569, 1656991903,
+            157756641, 1571003831,
+        ],
+        [
+            2109082198, 1282673068, 331533340, 155427572, 1362775299, 1204999857, 868494283,
+            1084220124, 148106575, 806464112, 517366790, 1706152613, 93013513, 1937305141,
+            1140571467, 1885203418,
+        ],
+        [
+            1835920144, 1206936349, 3631345, 1673506215, 142350226, 991116072, 795722507,
+            2014023057, 1240042960, 617506984, 1572505983, 883145032, 284483487, 393762478,
+            1370696701, 1548190401,
+        ],
+        [
+            593717366, 831183373, 1349533916, 132932556, 919497294, 1319399919, 1455908113,
+            1518325178, 466178793, 1843875951, 820181398, 358956349, 547431065, 1169772005,
+            1176952676, 1315938663,
+        ],
+        [
+            439110515, 866287879, 675258191, 1182462343, 1663930657, 1669852806, 458624943,
+            1671116203, 157114180, 601492859, 482098945, 725305402, 2121687200, 207978448,
+            422038674, 1593677019,
+        ],
+    ];
+    const INTERNAL_POSEIDON2_CONSTANTS: [u32; 14] = [
+        439688492, 778564230, 1348784034, 28869688, 674449982, 1063896158, 215562190, 693226089,
+        1852238031, 569836680, 995240347, 978793598, 1217858362, 357939656,
+    ];
 
     // Our Poseidon2 Implementation
     fn poseidon2_mersenne31_width_16(input: &mut [F; 16]) {
@@ -79,59 +121,6 @@ mod tests {
         const D: u64 = 5;
         const ROUNDS_F: usize = 8;
         const ROUNDS_P: usize = 14;
-
-        // Generate some fixed random constants using Sage.
-        // These generated using:
-        // set_random_seed(246810)
-        // print([vector([ZZ.random_element(2**31) for _ in range(16)]) for _ in range(8)])
-        // print(vector([ZZ.random_element(2**31) for _ in range(14)]))
-
-        const EXTRNAL_CONSTANTS: [[u32; 16]; 8] = [
-            [
-                1777708182, 1721401758, 2112139575, 970766477, 1003159146, 2109481055, 1591645666,
-                1253081731, 147790673, 1795993607, 418185859, 1354578103, 1652934702, 1108743982,
-                1435244566, 1543814404,
-            ],
-            [
-                654930200, 351316337, 1963308868, 38861083, 879582739, 2132987718, 1163315387,
-                1362831467, 654205465, 1015011465, 1366066774, 1705258057, 1563940060, 1724600887,
-                917326561, 638966780,
-            ],
-            [
-                3384696, 1302649031, 2108321185, 457987989, 467145221, 2036332892, 719635900,
-                618708116, 2116382241, 601241247, 700313800, 1175204338, 1430530974, 396015992,
-                215098263, 960210005,
-            ],
-            [
-                1078243556, 737500799, 157307924, 1991287991, 296086783, 86954821, 1631858947,
-                1813358481, 2017811068, 1864361777, 1809775679, 584697386, 1396011569, 1656991903,
-                157756641, 1571003831,
-            ],
-            [
-                2109082198, 1282673068, 331533340, 155427572, 1362775299, 1204999857, 868494283,
-                1084220124, 148106575, 806464112, 517366790, 1706152613, 93013513, 1937305141,
-                1140571467, 1885203418,
-            ],
-            [
-                1835920144, 1206936349, 3631345, 1673506215, 142350226, 991116072, 795722507,
-                2014023057, 1240042960, 617506984, 1572505983, 883145032, 284483487, 393762478,
-                1370696701, 1548190401,
-            ],
-            [
-                593717366, 831183373, 1349533916, 132932556, 919497294, 1319399919, 1455908113,
-                1518325178, 466178793, 1843875951, 820181398, 358956349, 547431065, 1169772005,
-                1176952676, 1315938663,
-            ],
-            [
-                439110515, 866287879, 675258191, 1182462343, 1663930657, 1669852806, 458624943,
-                1671116203, 157114180, 601492859, 482098945, 725305402, 2121687200, 207978448,
-                422038674, 1593677019,
-            ],
-        ];
-        const INTERNAL_CONSTANTS: [u32; 14] = [
-            439688492, 778564230, 1348784034, 28869688, 674449982, 1063896158, 215562190,
-            693226089, 1852238031, 569836680, 995240347, 978793598, 1217858362, 357939656,
-        ];
 
         // Our Poseidon2 implementation.
         let poseidon2: Poseidon2<
@@ -142,10 +131,12 @@ mod tests {
             D,
         > = Poseidon2::new(
             ROUNDS_F,
-            EXTRNAL_CONSTANTS.map(to_mersenne31_array).to_vec(),
+            EXTRNAL_POSEIDON2_CONSTANTS
+                .map(to_mersenne31_array)
+                .to_vec(),
             Poseidon2ExternalMatrixGeneral,
             ROUNDS_P,
-            to_mersenne31_array(INTERNAL_CONSTANTS).to_vec(),
+            to_mersenne31_array(INTERNAL_POSEIDON2_CONSTANTS).to_vec(),
             DiffusionMatrixMersenne31,
         );
 
@@ -155,7 +146,7 @@ mod tests {
     /// Test on the constant 0 input.
     #[test]
     fn test_poseidon2_width_16_zeroes() {
-        let mut input: [F; 16] = [0_u32; 16].map(F::from_wrapped_u32);
+        let mut input: [F; 16] = [F::zero(); 16];
 
         let expected: [F; 16] = [
             1040993253, 2058700579, 511363496, 489533323, 208503827, 675841613, 904681360,
@@ -167,10 +158,7 @@ mod tests {
         assert_eq!(input, expected);
     }
 
-    /// Test on a roughly random input.
-    /// This random input is generated by the following sage code:
-    /// set_random_seed(2468)
-    /// vector([ZZ.random_element(2**31) for t in range(16)]).
+    /// Test on the input [0, 1, ..., 15]
     #[test]
     fn test_poseidon2_width_16_range() {
         let mut input: [F; 16] = array::from_fn(|i| F::from_wrapped_u32(i as u32));
@@ -186,6 +174,9 @@ mod tests {
     }
 
     /// Test on a roughly random input.
+    /// This random input is generated by the following sage code:
+    /// set_random_seed(2468)
+    /// vector([ZZ.random_element(2**31) for t in range(16)]).
     #[test]
     fn test_poseidon2_width_16_random() {
         let mut input: [F; 16] = [
