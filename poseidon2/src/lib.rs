@@ -14,6 +14,7 @@ mod internal;
 mod round_numbers;
 use alloc::vec::Vec;
 use core::marker::PhantomData;
+use serde::{Deserialize, Serialize};
 
 pub use external::*;
 pub use generic::*;
@@ -27,7 +28,7 @@ pub use round_numbers::poseidon2_round_numbers_128;
 const SUPPORTED_WIDTHS: [usize; 8] = [2, 3, 4, 8, 12, 16, 20, 24];
 
 /// The Poseidon2 permutation.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Poseidon2<F, ExternalPerm, InternalPerm, const WIDTH: usize, const D: u64> {
     /// The permutations used in External Rounds.
     external_layer: ExternalPerm,
