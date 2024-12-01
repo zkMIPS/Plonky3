@@ -37,6 +37,9 @@ pub struct Radix2DitParallel<F> {
     inverse_twiddles: RefCell<BTreeMap<usize, VectorPair<F>>>,
 }
 
+unsafe impl<F> Send for Radix2DitParallel<F> {}
+unsafe impl<F> Sync for Radix2DitParallel<F> {}
+
 /// A pair of vectors, one with twiddle factors in their natural order, the other bit-reversed.
 #[derive(Default, Clone, Debug)]
 struct VectorPair<F> {
