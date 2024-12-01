@@ -5,6 +5,7 @@ use p3_mds::MdsPermutation;
 use p3_symmetric::Permutation;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
+use serde::{Serialize, Deserialize};
 
 /// Multiply a 4-element vector x by
 /// [ 5 7 1 3 ]
@@ -156,7 +157,9 @@ pub fn mds_light_permutation<
 }
 
 /// A struct which holds the constants for the external layer.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound(serialize = "[T; WIDTH]: Serialize"))]
+#[serde(bound(deserialize= "[T; WIDTH]: Deserialize<'de>"))]
 pub struct ExternalLayerConstants<T, const WIDTH: usize> {
     // Once initialised, these constants should be immutable.
     initial: Vec<[T; WIDTH]>,
