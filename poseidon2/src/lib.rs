@@ -29,6 +29,12 @@ const SUPPORTED_WIDTHS: [usize; 8] = [2, 3, 4, 8, 12, 16, 20, 24];
 
 /// The Poseidon2 permutation.
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(bound(
+    serialize = "F: Serialize, ExternalPerm: Serialize, InternalPerm: Serialize"
+))]
+#[serde(bound(
+    deserialize = "F: Deserialize<'de>, ExternalPerm: Deserialize<'de>, InternalPerm: Deserialize<'de>"
+))]
 pub struct Poseidon2<F, ExternalPerm, InternalPerm, const WIDTH: usize, const D: u64> {
     /// The permutations used in External Rounds.
     external_layer: ExternalPerm,
