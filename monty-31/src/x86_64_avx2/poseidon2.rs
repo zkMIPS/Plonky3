@@ -4,6 +4,7 @@ use alloc::vec::Vec;
 use core::arch::x86_64::{self, __m256i};
 use core::marker::PhantomData;
 use core::mem::transmute;
+use serde::{Serialize, Deserialize};
 
 use p3_poseidon2::{
     external_initial_permute_state, external_terminal_permute_state, sum_15, sum_23, ExternalLayer,
@@ -108,7 +109,11 @@ impl<PMP: PackedMontyParameters> InternalLayer24<PMP> {
 /// The packed constants are stored in negative form as this allows some optimizations.
 /// This means given a constant `x`, we treat it as an `i32` and
 /// pack 8 copies of `x - P` into the corresponding `__m256i` packed constant.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound(serialize = "Vec<MontyField31<MP>>: Serialize, MP: Serialize"))]
+#[serde(bound(
+    deserialize = "Vec<MontyField31<MP>>: Deserialize<'de>, MP: Deserialize<'de>"
+))]
 pub struct Poseidon2InternalLayerMonty31<
     PMP: PackedMontyParameters,
     const WIDTH: usize,
@@ -144,7 +149,11 @@ impl<FP: FieldParameters, const WIDTH: usize, ILP: InternalLayerParametersAVX2<F
 /// The packed constants are stored in negative form as this allows some optimizations.
 /// This means given a constant `x`, we treat it as an `i32` and
 /// pack 8 copies of `x - P` into the corresponding `__m256i` packed constant.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound(serialize = "[MontyField31<MP>; WIDTH]: Serialize, MP: Serialize"))]
+#[serde(bound(
+    deserialize = "[MontyField31<MP>; WIDTH]: Deserialize<'de>, MP: Deserialize<'de>"
+))]
 pub struct Poseidon2ExternalLayerMonty31<PMP: PackedMontyParameters, const WIDTH: usize> {
     pub(crate) external_constants: ExternalLayerConstants<MontyField31<PMP>, WIDTH>,
     packed_initial_external_constants: Vec<[__m256i; WIDTH]>,

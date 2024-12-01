@@ -5,6 +5,7 @@
 
 use alloc::vec::Vec;
 use core::marker::PhantomData;
+use serde::{Serialize, Deserialize};
 
 use p3_poseidon2::{
     add_rc_and_sbox_generic, external_initial_permute_state, external_terminal_permute_state,
@@ -20,7 +21,11 @@ use crate::{
 /// The internal layers of the Poseidon2 permutation for Monty31 fields.
 ///
 /// This is currently not optimized for the Neon architecture but this is on the TODO list.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound(serialize = "Vec<MontyField31<MP>>: Serialize, MP: Serialize"))]
+#[serde(bound(
+    deserialize = "Vec<MontyField31<MP>>: Deserialize<'de>, MP: Deserialize<'de>"
+))]
 pub struct Poseidon2InternalLayerMonty31<
     MP: MontyParameters,
     const WIDTH: usize,
@@ -33,7 +38,11 @@ pub struct Poseidon2InternalLayerMonty31<
 /// The external layers of the Poseidon2 permutation for Monty31 fields.
 ///
 /// This is currently not optimized for the Neon architecture but this is on the TODO list.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound(serialize = "[MontyField31<MP>; WIDTH]: Serialize, MP: Serialize"))]
+#[serde(bound(
+    deserialize = "[MontyField31<MP>; WIDTH]: Deserialize<'de>, MP: Deserialize<'de>"
+))]
 pub struct Poseidon2ExternalLayerMonty31<MP: MontyParameters, const WIDTH: usize> {
     pub(crate) external_constants: ExternalLayerConstants<MontyField31<MP>, WIDTH>,
 }
