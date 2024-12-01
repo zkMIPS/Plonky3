@@ -1,12 +1,17 @@
 use alloc::vec;
 use alloc::vec::Vec;
+use serde::{Deserialize, Serialize};
 
 use p3_field::{ExtensionField, Field, PrimeField64};
 use p3_symmetric::{CryptographicPermutation, Hash};
 
 use crate::{CanObserve, CanSample, CanSampleBits, FieldChallenger};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(bound(serialize = "[F; WIDTH]: Serialize, F: Serialize, P: Serialize"))]
+#[serde(bound(
+    deserialize = "[F; WIDTH]: Deserialize<'de>, F: Deserialize<'de>, P: Deserialize<'de>"
+))]
 pub struct DuplexChallenger<F, P, const WIDTH: usize, const RATE: usize>
 where
     F: Clone,
