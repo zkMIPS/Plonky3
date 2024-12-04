@@ -10,6 +10,7 @@ use p3_poseidon2::{
     internal_permute_state, matmul_internal, ExternalLayer, ExternalLayerConstants,
     ExternalLayerConstructor, HLMDSMat4, InternalLayer, InternalLayerConstructor, Poseidon2,
 };
+use serde::{Serialize, Deserialize};
 
 use crate::Bn254Fr;
 
@@ -38,7 +39,7 @@ fn get_diffusion_matrix_3() -> &'static [Bn254Fr; 3] {
     MAT_DIAG3_M_1.get_or_init(|| [Bn254Fr::ONE, Bn254Fr::ONE, Bn254Fr::TWO])
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Poseidon2InternalLayerBn254 {
     internal_constants: Vec<Bn254Fr>,
 }
