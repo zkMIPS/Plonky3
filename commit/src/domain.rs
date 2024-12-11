@@ -1,6 +1,7 @@
 use alloc::vec::Vec;
 
 use itertools::Itertools;
+use serde::{Serialize, Deserialize, de::DeserializeOwned};
 use p3_field::{
     batch_multiplicative_inverse, cyclic_subgroup_coset_known_order, ExtensionField, Field,
     TwoAdicField,
@@ -54,7 +55,9 @@ pub trait PolynomialSpace: Copy {
     fn selectors_on_coset(&self, coset: Self) -> LagrangeSelectors<Vec<Self::Val>>;
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[serde(bound(serialize = "Val: Serialize"))]
+#[serde(bound(deserialize = "Val: DeserializeOwned"))]
 pub struct TwoAdicMultiplicativeCoset<Val: TwoAdicField> {
     pub log_n: usize,
     pub shift: Val,

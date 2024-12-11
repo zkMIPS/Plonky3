@@ -251,12 +251,14 @@ pub fn external_terminal_permute_state<
     add_rc_and_sbox: fn(&mut FA, CT),
     mat4: &MdsPerm4,
 ) {
+    let mut resu = alloc::vec![];
     for elem in terminal_external_constants.iter() {
         state
             .iter_mut()
             .zip(elem.iter())
             .for_each(|(s, &rc)| add_rc_and_sbox(s, rc));
         mds_light_permutation(state, mat4);
+        resu.push(state.clone());
     }
 }
 

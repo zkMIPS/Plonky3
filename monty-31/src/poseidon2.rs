@@ -87,13 +87,17 @@ where
     /// Perform the internal layers of the Poseidon2 permutation on the given state.
     fn permute_state(&self, state: &mut [MontyField31<FP>; WIDTH]) {
         self.internal_constants.iter().for_each(|rc| {
+            //panic!("internal {:?} {:?}", state[0], rc);
+            //panic!("internal {:?}", rc);
             state[0] += *rc;
             state[0] = state[0].exp_const_u64::<D>();
             let part_sum: MontyField31<FP> = state[1..].iter().cloned().sum();
             let full_sum = part_sum + state[0];
             state[0] = part_sum - state[0];
             P2P::internal_layer_mat_mul(state, full_sum);
-        })
+            //panic!("internal {:?} {:?}", state[0], rc);
+        });
+        //panic!("internal {:?}", state);
     }
 }
 
@@ -114,6 +118,8 @@ where
 
     /// Perform the terminal external layers of the Poseidon2 permutation on the given state.
     fn permute_state_terminal(&self, state: &mut [MontyField31<FP>; WIDTH]) {
+        let a = self.external_constants.get_terminal_constants();
+        //panic!("terminal: {:?}", a);
         external_terminal_permute_state(
             state,
             self.external_constants.get_terminal_constants(),
