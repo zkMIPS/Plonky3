@@ -17,6 +17,9 @@ use tracing::{debug_span, instrument};
 use crate::butterflies::{Butterfly, DitButterfly};
 use crate::TwoAdicSubgroupDft;
 
+use p3_util::Spinlock;
+use alloc::sync::Arc;
+
 /// A parallel FFT algorithm which divides a butterfly network's layers into two halves.
 ///
 /// For the first half, we apply a butterfly network with smaller blocks in earlier layers,
@@ -27,14 +30,14 @@ use crate::TwoAdicSubgroupDft;
 #[derive(Default, Clone, Debug)]
 pub struct Radix2DitParallel<F> {
     /// Twiddles based on roots of unity, used in the forward DFT.
-    twiddles: RefCell<BTreeMap<usize, VectorPair<F>>>,
+    twiddles: Arc<Spinlock<BTreeMap<usize, VectorPair<F>>>>,
 
     /// A map from `(log_h, shift)` to forward DFT twiddles with that coset shift baked in.
     #[allow(clippy::type_complexity)]
-    coset_twiddles: RefCell<BTreeMap<(usize, F), Vec<Vec<F>>>>,
+    coset_twiddles: Arc<Spinlock<BTreeMap<(usize, F), Vec<Vec<F>>>>>,
 
     /// Twiddles based on inverse roots of unity, used in the inverse DFT.
-    inverse_twiddles: RefCell<BTreeMap<usize, VectorPair<F>>>,
+    inverse_twiddles: Arc<Spinlock<BTreeMap<usize, VectorPair<F>>>>,
 }
 
 unsafe impl<F> Send for Radix2DitParallel<F> {}
@@ -110,7 +113,7 @@ impl<F: TwoAdicField + Ord> TwoAdicSubgroupDft<F> for Radix2DitParallel<F> {
         let log_h = log2_strict_usize(h);
 
         // Compute twiddle factors, or take memoized ones if already available.
-        let mut twiddles_ref_mut = self.twiddles.borrow_mut();
+        let mut twiddles_ref_mut = self.twiddles.lock();
         let twiddles = twiddles_ref_mut
             .entry(log_h)
             .or_insert_with(|| compute_twiddles(log_h));
@@ -140,7 +143,7 @@ impl<F: TwoAdicField + Ord> TwoAdicSubgroupDft<F> for Radix2DitParallel<F> {
         let log_h = log2_strict_usize(h);
         let mid = log_h.div_ceil(2);
 
-        let mut inverse_twiddles_ref_mut = self.inverse_twiddles.borrow_mut();
+        let mut inverse_twiddles_ref_mut = self.inverse_twiddles.lock();
         let inverse_twiddles = inverse_twiddles_ref_mut
             .entry(log_h)
             .or_insert_with(|| compute_inverse_twiddles(log_h));
@@ -200,18 +203,18 @@ fn coset_dft<F: TwoAdicField + Ord>(
     let log_h = log2_strict_usize(mat.height());
     let mid = log_h.div_ceil(2);
 
-    let mut twiddles_ref_mut = dft.coset_twiddles.borrow_mut();
+    let mut twiddles_ref_mut = dft.coset_twiddles.lock();
     let twiddles = twiddles_ref_mut
         .entry((log_h, shift))
         .or_insert_with(|| compute_coset_twiddles(log_h, shift));
 
     // The first half looks like a normal DIT.
-    first_half_general(mat, mid, twiddles);
+    first_half_general(mat, mid, &twiddles);
 
     // For the second half, we flip the DIT, working in bit-reversed order.
     reverse_matrix_index_bits(mat);
 
-    second_half_general(mat, mid, twiddles);
+    second_half_general(mat, mid, &twiddles);
 }
 
 /// Like `coset_dft`, except out-of-place.
@@ -238,13 +241,13 @@ fn coset_dft_oop<F: TwoAdicField + Ord>(
 
     let mid = log_h.div_ceil(2);
 
-    let mut twiddles_ref_mut = dft.coset_twiddles.borrow_mut();
+    let mut twiddles_ref_mut = dft.coset_twiddles.lock();
     let twiddles = twiddles_ref_mut
         .entry((log_h, shift))
         .or_insert_with(|| compute_coset_twiddles(log_h, shift));
 
     // The first half looks like a normal DIT.
-    first_half_general_oop(src, dst_maybe, mid, twiddles);
+    first_half_general_oop(src, dst_maybe, mid, &twiddles);
 
     // dst is now initialized.
     let dst = unsafe {
@@ -256,7 +259,7 @@ fn coset_dft_oop<F: TwoAdicField + Ord>(
     // For the second half, we flip the DIT, working in bit-reversed order.
     reverse_matrix_index_bits(dst);
 
-    second_half_general(dst, mid, twiddles);
+    second_half_general(dst, mid, &twiddles);
 }
 
 /// This can be used as the first half of a DIT butterfly network.
