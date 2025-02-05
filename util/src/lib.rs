@@ -15,6 +15,9 @@ use core::mem::align_of;
 
 pub mod array_serialization;
 pub mod linear_map;
+pub mod spin_lock;
+
+pub use spin_lock::*;
 
 /// Computes `ceil(log_2(n))`.
 #[must_use]
