@@ -11,12 +11,17 @@ use rand::Rng;
 
 use crate::Mersenne31;
 
+use serde::{Serialize, Deserialize};
 const WIDTH: usize = 4;
 const P: uint32x4_t = unsafe { transmute::<[u32; WIDTH], _>([0x7fffffff; WIDTH]) };
 
 /// Vectorized NEON implementation of `Mersenne31` arithmetic.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(transparent)] // This needed to make `transmute`s safe.
+#[serde(bound(serialize = "[Mersenne31; WIDTH]: Serialize"))]
+#[serde(bound(
+    deserialize = "[Mersenne31; WIDTH]: Deserialize<'de>"
+))]
 pub struct PackedMersenne31Neon(pub [Mersenne31; WIDTH]);
 
 impl PackedMersenne31Neon {

@@ -11,19 +11,29 @@ use p3_poseidon2::{
     InternalLayer, InternalLayerConstructor, MDSMat4,
 };
 
+use serde::{Serialize, Deserialize};
+
 use crate::{
     GenericPoseidon2LinearLayersMersenne31, Mersenne31, PackedMersenne31Neon,
     MERSENNE31_S_BOX_DEGREE,
 };
 
 /// The internal layers of the Poseidon2 permutation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound(serialize = "Vec<Mersenne31>: Serialize"))]
+#[serde(bound(
+    deserialize = "Vec<Mersenne31>: Deserialize<'de>"
+))]
 pub struct Poseidon2InternalLayerMersenne31 {
     pub(crate) internal_constants: Vec<Mersenne31>,
 }
 
 /// The external layers of the Poseidon2 permutation.
-#[derive(Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound(serialize = "[Mersenne31; WIDTH]: Serialize"))]
+#[serde(bound(
+    deserialize = "[Mersenne31; WIDTH]: Deserialize<'de>"
+))]
 pub struct Poseidon2ExternalLayerMersenne31<const WIDTH: usize> {
     pub(crate) external_constants: ExternalLayerConstants<Mersenne31, WIDTH>,
 }
