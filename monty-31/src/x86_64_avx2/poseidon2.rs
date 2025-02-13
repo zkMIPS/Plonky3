@@ -110,9 +110,9 @@ impl<PMP: PackedMontyParameters> InternalLayer24<PMP> {
 /// This means given a constant `x`, we treat it as an `i32` and
 /// pack 8 copies of `x - P` into the corresponding `__m256i` packed constant.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(bound(serialize = "Vec<MontyField31<MP>>: Serialize, MP: Serialize"))]
+#[serde(bound(serialize = "Vec<MontyField31<PMP>>: Serialize, PMP: Serialize"))]
 #[serde(bound(
-    deserialize = "Vec<MontyField31<MP>>: Deserialize<'de>, MP: Deserialize<'de>"
+    deserialize = "Vec<MontyField31<PMP>>: Deserialize<'de>, PMP: Deserialize<'de>"
 ))]
 pub struct Poseidon2InternalLayerMonty31<
     PMP: PackedMontyParameters,
