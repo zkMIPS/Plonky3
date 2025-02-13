@@ -7,8 +7,6 @@ use p3_matrix::Matrix;
 #[derive(Debug)]
 pub struct FriConfig<M> {
     pub log_blowup: usize,
-    // TODO: This parameter and FRI early stopping are not yet implemented in `CirclePcs`.
-    pub log_final_poly_len: usize,
     pub num_queries: usize,
     pub proof_of_work_bits: usize,
     pub mmcs: M,
@@ -18,11 +16,6 @@ impl<M> FriConfig<M> {
     pub const fn blowup(&self) -> usize {
         1 << self.log_blowup
     }
-
-    pub const fn final_poly_len(&self) -> usize {
-        1 << self.log_final_poly_len
-    }
-
     /// Returns the soundness bits of this FRI instance based on the
     /// [ethSTARK](https://eprint.iacr.org/2021/582) conjecture.
     ///
@@ -63,7 +56,6 @@ pub trait FriGenericConfig<F: Field> {
 pub const fn create_benchmark_fri_config<Mmcs>(mmcs: Mmcs) -> FriConfig<Mmcs> {
     FriConfig {
         log_blowup: 1,
-        log_final_poly_len: 0,
         num_queries: 100,
         proof_of_work_bits: 16,
         mmcs,

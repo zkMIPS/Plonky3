@@ -8,7 +8,7 @@ use p3_matrix::dense::RowMajorMatrix;
 use p3_poseidon2::GenericPoseidon2LinearLayers;
 use p3_poseidon2_air::VectorizedPoseidon2Air;
 use p3_uni_stark::{
-     ProverConstraintFolder, StarkGenericConfig, SymbolicAirBuilder,
+    DebugConstraintBuilder, ProverConstraintFolder, StarkGenericConfig, SymbolicAirBuilder,
     SymbolicExpression, VerifierConstraintFolder,
 };
 use rand::distributions::Standard;
@@ -49,7 +49,7 @@ pub enum ProofObjective<
 /// the output of some number of hashes using a given hash function.
 pub trait ExampleHashAir<F: Field, SC: StarkGenericConfig>:
     BaseAir<F>
-    // + for<'a> Air<DebugConstraintBuilder<'a, F>>
+    + for<'a> Air<DebugConstraintBuilder<'a, F>>
     + Air<SymbolicAirBuilder<F>>
     + for<'a> Air<ProverConstraintFolder<'a, SC>>
     + for<'a> Air<VerifierConstraintFolder<'a, SC>>
