@@ -150,9 +150,9 @@ impl<FP: FieldParameters, const WIDTH: usize, ILP: InternalLayerParametersAVX2<F
 /// This means given a constant `x`, we treat it as an `i32` and
 /// pack 8 copies of `x - P` into the corresponding `__m256i` packed constant.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(bound(serialize = "[MontyField31<MP>; WIDTH]: Serialize, MP: Serialize"))]
+#[serde(bound(serialize = "[MontyField31<PMP>; WIDTH]: Serialize, PMP: Serialize"))]
 #[serde(bound(
-    deserialize = "[MontyField31<MP>; WIDTH]: Deserialize<'de>, MP: Deserialize<'de>"
+    deserialize = "[MontyField31<PMP>; WIDTH]: Deserialize<'de>, PMP: Deserialize<'de>"
 ))]
 pub struct Poseidon2ExternalLayerMonty31<PMP: PackedMontyParameters, const WIDTH: usize> {
     pub(crate) external_constants: ExternalLayerConstants<MontyField31<PMP>, WIDTH>,
