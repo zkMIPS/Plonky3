@@ -110,6 +110,9 @@ where
 {
     fn permute_mut(&self, state: &mut [FA; WIDTH]) {
         self.external_layer.permute_state_initial(state);
+        for v in &mut *state {
+            let x = v;
+        }
         self.internal_layer.permute_state(state);
         self.external_layer.permute_state_terminal(state);
     }
