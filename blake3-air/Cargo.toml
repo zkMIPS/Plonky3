@@ -10,6 +10,7 @@ p3-field = { path = "../field" }
 p3-matrix = { path = "../matrix" }
 p3-maybe-rayon = { path = "../maybe-rayon" }
 p3-util = { path = "../util" }
+rand.workspace = true
 tracing = "0.1.37"
 itertools = "0.13.0"
 

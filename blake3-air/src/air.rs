@@ -1,20 +1,31 @@
+use alloc::vec::Vec;
 use core::borrow::Borrow;
 
 use itertools::izip;
+use rand::random;
 use p3_air::utils::{add2, add3, pack_bits_le, xor, xor_32_shift};
 use p3_air::{Air, AirBuilder, BaseAir};
-use p3_field::FieldAlgebra;
+use p3_field::{FieldAlgebra, PrimeField64};
+use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::Matrix;
 
 use crate::columns::{Blake3Cols, NUM_BLAKE3_COLS};
 use crate::constants::{permute, BITS_PER_LIMB, IV};
-use crate::{Blake3State, FullRound, QuarterRound};
+use crate::{generate_trace_rows, Blake3State, FullRound, QuarterRound};
 
 /// Assumes the field size is at least 16 bits.
 #[derive(Debug)]
 pub struct Blake3Air {}
 
 impl Blake3Air {
+    pub fn generate_trace_rows<F: PrimeField64>(
+        &self,
+        num_hashes: usize,
+        _extra_capacity_bits: usize,
+    ) -> RowMajorMatrix<F> {
+        let inputs = (0..num_hashes).map(|_| random()).collect::<Vec<_>>();
+        generate_trace_rows(inputs)
+    }
     /// Verify that the quarter round function has been correctly computed.
     ///
     /// We assume that the values in a, b, c, d have all been range checked to be
