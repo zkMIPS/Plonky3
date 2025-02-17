@@ -18,6 +18,10 @@ use crate::{
     MontyParameters, PackedMontyField31AVX2, PackedMontyParameters,
 };
 
+use crate::x86_64_avx2::serialize::{
+    serialize_m256i_vec, deserialize_m256i_vec, serialize_packed_m256i, deserialize_packed_m256i
+};
+
 // In the internal layers, it is valuable to treat the first entry of the state differently
 // as it is the only entry to which we apply s-box.
 // It seems to help the compiler if we introduce a different data structure for these layers.
@@ -120,6 +124,7 @@ pub struct Poseidon2InternalLayerMonty31<
     ILP: InternalLayerParametersAVX2<PMP, WIDTH>,
 > {
     pub(crate) internal_constants: Vec<MontyField31<PMP>>,
+    #[serde(serialize_with = "serialize_m256i_vec", deserialize_with = "deserialize_m256i_vec")]
     packed_internal_constants: Vec<__m256i>,
     _phantom: PhantomData<ILP>,
 }
@@ -156,7 +161,9 @@ impl<FP: FieldParameters, const WIDTH: usize, ILP: InternalLayerParametersAVX2<F
 ))]
 pub struct Poseidon2ExternalLayerMonty31<PMP: PackedMontyParameters, const WIDTH: usize> {
     pub(crate) external_constants: ExternalLayerConstants<MontyField31<PMP>, WIDTH>,
+    #[serde(serialize_with = "serialize_packed_m256i", deserialize_with = "deserialize_packed_m256i")]
     packed_initial_external_constants: Vec<[__m256i; WIDTH]>,
+    #[serde(serialize_with = "serialize_packed_m256i", deserialize_with = "deserialize_packed_m256i")]
     packed_terminal_external_constants: Vec<[__m256i; WIDTH]>,
 }
 

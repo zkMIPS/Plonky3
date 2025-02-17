@@ -8,7 +8,7 @@ use p3_field::{Field, FieldAlgebra, PackedField, PackedFieldPow2, PackedValue};
 use p3_util::convert_vec;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
-
+use serde::{Deserialize, Serialize};
 use crate::{FieldParameters, MontyField31, PackedMontyParameters};
 
 const WIDTH: usize = 8;
@@ -19,7 +19,11 @@ pub trait MontyParametersAVX2 {
 }
 
 /// Vectorized AVX2 implementation of `MontyField31<FP>` arithmetic.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(bound(serialize = "[MontyField31<PMP>; WIDTH]: Serialize, PMP: Serialize"))]
+#[serde(bound(
+    deserialize = "[MontyField31<PMP>; WIDTH]: Deserialize<'de>, PMP: Deserialize<'de>"
+))]
 #[repr(transparent)] // This is needed to make `transmute`s safe.
 pub struct PackedMontyField31AVX2<PMP: PackedMontyParameters>(pub [MontyField31<PMP>; WIDTH]);
 
