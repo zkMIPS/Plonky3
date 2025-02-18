@@ -4,10 +4,12 @@ use p3_monty_31::{
     PackedMontyParameters, TwoAdicData,
 };
 
+use serde::{Serialize, Deserialize};
+
 /// The prime field `2^31 - 2^24 + 1`, a.k.a. the Koala Bear field.
 pub type KoalaBear = MontyField31<KoalaBearParameters>;
 
-#[derive(Copy, Clone, Default, Debug, Eq, Hash, PartialEq)]
+#[derive(Copy, Clone, Default, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct KoalaBearParameters;
 
 impl MontyParameters for KoalaBearParameters {
