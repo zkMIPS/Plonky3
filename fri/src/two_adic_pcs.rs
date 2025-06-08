@@ -433,10 +433,10 @@ where
             }
 
             // `reduced_openings` would have a log_height = log_blowup entry only if there was a
-            // trace matrix of height 1. In this case the reduced opening can be skipped as it will
-            // not be checked against any commit phase commit.
-            if let Some((_alpha_pow, ro)) = reduced_openings.remove(&self.fri.log_blowup) {
-                debug_assert!(ro.is_zero());
+            // trace matrix of height 1. In this case `f` is constant, so `f(zeta) - f(x))/(zeta - x)`Add commentMore actions
+            // must equal `0`.
+            if let Some((_alpha_pow, ro)) = reduced_openings.get(&self.fri.log_blowup) {
+                assert!(ro.is_zero());
             }
 
             // Return reduced openings descending by log_height.
