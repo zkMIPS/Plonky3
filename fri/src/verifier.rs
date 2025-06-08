@@ -134,6 +134,20 @@ where
         index = index_pair;
 
         folded_eval = g.fold_row(index, log_folded_height, beta, evals.into_iter());
+
+        // If there are new polynomials to roll in at the folded height, do so.
+        //
+        // Each element of `ro_iter` is the evaluation of a reduced opening polynomial, which is itself
+        // a random linear combination `f_{i, 0}(x) + alpha f_{i, 1}(x) + ...`, but when we add it
+        // to the current folded polynomial evaluation claim, we need to multiply by a new random factor
+        // since `f_{i, 0}` has no leading coefficient.
+        //
+        // We use `beta^2` as the random factor since `beta` is already used in the folding.
+        // This increases the query phase error probability by a negligible amount, and does not change
+        // the required number of FRI queries.
+        if let Some((_, ro)) = ro_iter.next_if(|(lh, _)| *lh == log_folded_height) {
+            folded_eval += beta.square() * ro;
+        }
     }
 
     debug_assert!(index < config.blowup(), "index was {}", index);

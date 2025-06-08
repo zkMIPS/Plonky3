@@ -100,7 +100,11 @@ where
         data.push(prover_data);
 
         if let Some(v) = inputs_iter.next_if(|v| v.len() == folded.len()) {
-            izip!(&mut folded, v).for_each(|(c, x)| *c += x);
+            // Each element of `inputs_iter` is a reduced opening polynomial, which is itself a
+            // random linear combination `f_{i, 0} + alpha f_{i, 1} + ...`, but when we add it
+            // to the current folded polynomial, we need to multiply by a new random factor since
+            // `f_{i, 0}` has no leading coefficient.Add commentMore actions
+            izip!(&mut folded, v).for_each(|(c, x)| *c += beta.square() * x);
         }
     }
 
